@@ -2,30 +2,46 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
 import Configurator from "./components/Configurator";
 
 export default function Home() {
-    const [user, setUser] = useState<any>(null);
-    const [price, setPrice] = useState<number | null>(null);
-    const [loading, setLoading] = useState<boolean>(false);
-    const router = useRouter();
+    // 1. Inițializăm starea DIRECT din localStorage pentru zero latență
+    const [user, setUser] = useState<any>(() => {
+        if (typeof window !== "undefined") {
+            const localSession = localStorage.getItem("sb-xvmfszcrqrkxsiyyqjwf-auth-token");
+            if (localSession) {
+                try {
+                    return JSON.parse(localSession).user;
+                } catch (e) {
+                    return null;
+                }
+            }
+        }
+        return null;
+    });
+
+    const [isHydrated, setIsHydrated] = useState(false);
 
     useEffect(() => {
+        setIsHydrated(true);
+
+        // 2. Validăm "în culise" cu Supabase pentru a ne asigura că tokenul nu a expirat
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            // Actualizăm starea doar dacă e o diferență, pentru a evita re-randări inutile
+            if (session?.user?.id !== user?.id) {
+                setUser(session?.user || null);
+            }
+        });
+
+        // 3. Ascultăm orice schimbare viitoare (ex: dă logout din alt tab)
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setUser(session?.user || null);
         });
-        return () => subscription.unsubscribe();
-    }, []);
 
-    const handleCalculate = () => {
-        if (!user) { router.push("/auth/login"); return; }
-        setLoading(true);
-        setTimeout(() => {
-            setPrice(Math.floor(Math.random() * (500 - 200) + 200));
-            setLoading(false);
-        }, 800);
-    };
+        return () => subscription.unsubscribe();
+    }, [user?.id]); // Am adăugat user?.id în dependențe
+
+    if (!isHydrated) return null;
 
     return (
         <div className="flex flex-col w-full bg-[#fdfdfd]">
@@ -40,8 +56,6 @@ export default function Home() {
                         Sistemele iPlisse combină ingineria de precizie cu estetica minimalistă. Calculează oferta personalizată în mai puțin de 60 de secunde.
                     </p>
                 </div>
-
-                {/* CARDS PRESENTATION */}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl w-full mt-20">
                     {[
@@ -101,12 +115,7 @@ export default function Home() {
                     <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter mb-4">Configurator Inteligent</h2>
                     <p className="text-slate-400">Alege dimensiunile și finisajele pentru a vedea prețul instant.</p>
                 </div>
-                <Configurator
-                    user={user}
-                    onCalculate={handleCalculate}
-                    loading={loading}
-                    price={price}
-                />
+                <Configurator user={user} />
             </section>
         </div>
     );

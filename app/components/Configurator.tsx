@@ -1,49 +1,183 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { createBrowserClient } from "@supabase/ssr";
 
 interface ConfiguratorProps {
     user: any;
-    onCalculate: () => void;
-    loading: boolean;
-    price: number | null;
 }
 
-export default function Configurator({ user, onCalculate, loading, price }: ConfiguratorProps) {
+export default function Configurator({ user }: ConfiguratorProps) {
+    const router = useRouter();
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [hydrated, setHydrated] = useState(false);
+
+    // Stări formular
     const [unit, setUnit] = useState<"mm" | "cm" | "m">("mm");
     const [rawWidth, setRawWidth] = useState<string>("1200");
     const [rawHeight, setRawHeight] = useState<string>("1500");
     const [frameColor, setFrameColor] = useState<string>("Antracit (RAL 7016)");
-    const [viewMode, setViewMode] = useState<"2D" | "3D">("2D");
     const [openLevel, setOpenLevel] = useState<number>(70);
-    const [plisseType, setPlisseType] = useState<string>("Plisse Orizontal");
+    const [viewMode, setViewMode] = useState<"2D" | "3D">("3D");
 
-    // Curăță inputul (permite doar cifre, elimină zerourile initiale)
+    // Stări pentru 3D Interactive (Cursor Grab)
+    const [rotation, setRotation] = useState({ x: 15, y: -25 });
+    const [isDragging, setIsDragging] = useState(false);
+    const dragStart = useRef({ x: 0, y: 0 });
+    const visualizerRef = useRef<HTMLDivElement>(null);
+
+    const supabase = useMemo(() => createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    ), []);
+
+    // 1. Recuperare din LocalStorage
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem("iplisse_config");
+            if (saved) {
+                const p = JSON.parse(saved);
+                setRawWidth(p.rawWidth || "1200");
+                setRawHeight(p.rawHeight || "1500");
+                setUnit(p.unit || "mm");
+                setFrameColor(p.frameColor || "Antracit (RAL 7016)");
+                setViewMode(p.viewMode || "3D");
+            }
+        } catch {
+            // Ignorăm cache-ul corupt
+        } finally {
+            setHydrated(true);
+        }
+    }, []);
+
+    // 2. Salvare automată în LocalStorage
+    useEffect(() => {
+        if (!hydrated) return;
+        localStorage.setItem(
+            "iplisse_config",
+            JSON.stringify({ rawWidth, rawHeight, unit, frameColor, viewMode })
+        );
+    }, [rawWidth, rawHeight, unit, frameColor, viewMode, hydrated]);
+
+    // Calcule Dimensiuni
     const handleInputChange = (val: string, type: "w" | "h") => {
         const cleanVal = val.replace(/[^0-9]/g, "").replace(/^0+/, "") || "0";
         if (type === "w") setRawWidth(cleanVal);
         else setRawHeight(cleanVal);
     };
 
-    // Determină tipul plisse în funcție de înălțime
-    useEffect(() => {
-        const h = Number(rawHeight);
-        if (h > 2200) setPlisseType("Plisse XL Orizontal");
-        else if (h < 800) setPlisseType("Plisse Vertical");
-        else setPlisseType("Plisse Orizontal");
-    }, [rawHeight]);
-
-    // Conversie la mm pentru calcule
-    const convertToMm = (val: string, u: string) => {
-        const n = Number(val);
+    const convertToMm = (val: string, u: string): number => {
+        const n = Number(val) || 0;
         if (u === "cm") return n * 10;
         if (u === "m") return n * 1000;
         return n;
     };
 
-    const wMm = Math.round(convertToMm(rawWidth, unit));
-    const hMm = Math.round(convertToMm(rawHeight, unit));
-    const scale = Math.min(240 / Math.max(wMm, 1), 240 / Math.max(hMm, 1));
+    const wMm = useMemo(() => Math.round(convertToMm(rawWidth, unit)), [rawWidth, unit]);
+    const hMm = useMemo(() => Math.round(convertToMm(rawHeight, unit)), [rawHeight, unit]);
+    const scale = useMemo(() => Math.min(240 / Math.max(wMm, 1), 240 / Math.max(hMm, 1)), [wMm, hMm]);
+
+    const plisseType = useMemo(() => {
+        if (hMm > 2200) return "Plisse XL Orizontal";
+        if (hMm < 800) return "Plisse Vertical";
+        return "Plisse Orizontal";
+    }, [hMm]);
+
+    // 3. Calcul Preț Automat
+    const calculatedPrice = useMemo(() => {
+        if (wMm === 0 || hMm === 0) return 0;
+        const areaMp = (wMm * hMm) / 1_000_000;
+        const pricePerMp = 250;
+        const baseFee = 50;
+        return (areaMp * pricePerMp) + baseFee;
+    }, [wMm, hMm]);
+
+    // --- LOGICA 3D INTERACTIVĂ (OPTMIZATĂ) ---
+    const handleMouseDown = (e: React.MouseEvent) => {
+        if (viewMode !== "3D") return;
+        setIsDragging(true);
+        dragStart.current = { x: e.clientX, y: e.clientY };
+    };
+
+    const handleMouseMove = useCallback((e: MouseEvent) => {
+        if (!isDragging || viewMode !== "3D") return;
+
+        const deltaX = e.clientX - dragStart.current.x;
+        const deltaY = e.clientY - dragStart.current.y;
+        const sensitivity = 0.4;
+
+        setRotation(prev => ({
+            x: Math.max(-60, Math.min(60, prev.x - deltaY * sensitivity)), // Limităm axa X ca să nu se dea peste cap
+            y: prev.y + deltaX * sensitivity
+        }));
+
+        dragStart.current = { x: e.clientX, y: e.clientY };
+    }, [isDragging, viewMode]);
+
+    const handleMouseUp = useCallback(() => {
+        setIsDragging(false);
+    }, []);
+
+    useEffect(() => {
+        if (isDragging) {
+            window.addEventListener("mousemove", handleMouseMove, { passive: true });
+            window.addEventListener("mouseup", handleMouseUp);
+        } else {
+            window.removeEventListener("mousemove", handleMouseMove);
+            window.removeEventListener("mouseup", handleMouseUp);
+        }
+        return () => {
+            window.removeEventListener("mousemove", handleMouseMove);
+            window.removeEventListener("mouseup", handleMouseUp);
+        };
+    }, [isDragging, handleMouseMove, handleMouseUp]);
+
+    // 4. Logica de adăugare în coș
+    const handleAddToCart = async () => {
+        if (!user) {
+            window.location.href = "/auth/login";
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                window.location.href = "/auth/login";
+                return;
+            }
+
+            const response = await fetch("/api/orders", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                    width: wMm,
+                    height: hMm,
+                    frameColor,
+                    plisseType,
+                    price: calculatedPrice,
+                }),
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error || "Eroare la adăugarea în coș.");
+            }
+
+            localStorage.removeItem("iplisse_config");
+            const order = await response.json();
+            router.push(`/orders/${order.id}`);
+        } catch (err: any) {
+            console.error(err);
+            alert(err.message || "A apărut o problemă. Încearcă din nou.");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     const colorMap: Record<string, string> = {
         "Antracit (RAL 7016)": "#373e47",
@@ -51,18 +185,35 @@ export default function Configurator({ user, onCalculate, loading, price }: Conf
         "Maro (RAL 8017)": "#4a3028",
     };
 
-    const getFrameStyling = () => {
-        const hex = colorMap[frameColor];
+    const frameStyle = useMemo(() => {
+        const hex = colorMap[frameColor] ?? "#373e47";
         return {
             backgroundColor: hex,
-            borderColor: hex === "#ffffff" ? "#cbd5e1" : "rgba(0,0,0,0.2)",
-            boxShadow: "0 0 15px rgba(0,0,0,0.1)",
+            borderColor: hex === "#ffffff" ? "#e2e8f0" : "rgba(0,0,0,0.4)",
+            boxShadow: viewMode === "3D"
+                ? "-15px 25px 40px rgba(0,0,0,0.2), inset 0 0 20px rgba(0,0,0,0.5)"
+                : "0 10px 25px rgba(0,0,0,0.1), inset 0 0 10px rgba(0,0,0,0.1)",
         };
-    };
+    }, [frameColor, viewMode]);
+
+    if (!hydrated) return null;
 
     return (
         <div className="bg-white border border-slate-200 shadow-2xl max-w-6xl w-full grid grid-cols-1 lg:grid-cols-12 overflow-hidden rounded-3xl transition-all">
-            {/* STÂNGA: Configurare */}
+            <style dangerouslySetInnerHTML={{
+                __html: `
+                    input[type=range]::-webkit-slider-thumb {
+                        -webkit-appearance: none; appearance: none;
+                        width: 18px; height: 18px;
+                        background: #2563eb; border-radius: 50%;
+                        cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+                        transition: transform 0.2s;
+                    }
+                    input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
+                `,
+            }} />
+
+            {/* ── STÂNGA: Configurare ── */}
             <div className="lg:col-span-7 p-8 md:p-12 bg-white">
                 <div className="space-y-10">
                     <section>
@@ -71,14 +222,12 @@ export default function Configurator({ user, onCalculate, loading, price }: Conf
                                 1. Configurare Cote
                             </h3>
                             <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner">
-                                {["mm", "cm", "m"].map((u) => (
+                                {(["mm", "cm", "m"] as const).map((u) => (
                                     <button
                                         key={u}
-                                        onClick={() => setUnit(u as any)}
+                                        onClick={() => setUnit(u)}
                                         className={`text-[11px] font-bold uppercase px-4 py-1.5 rounded-lg transition-all ${
-                                            unit === u
-                                                ? "bg-white shadow-md text-blue-600"
-                                                : "text-slate-400"
+                                            unit === u ? "bg-white shadow-md text-blue-600" : "text-slate-400"
                                         }`}
                                     >
                                         {u}
@@ -88,30 +237,25 @@ export default function Configurator({ user, onCalculate, loading, price }: Conf
                         </div>
 
                         <div className="grid grid-cols-2 gap-6">
-                            <div>
-                                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-2 block tracking-widest">
-                                    Lățime Gol
-                                </label>
-                                <input
-                                    type="text"
-                                    inputMode="numeric"
-                                    value={rawWidth}
-                                    onChange={(e) => handleInputChange(e.target.value, "w")}
-                                    className="w-full border-2 border-slate-100 rounded-2xl p-4 focus:border-blue-600 bg-slate-50/50 outline-none font-mono text-lg transition-all"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-2 block tracking-widest">
-                                    Înălțime Gol
-                                </label>
-                                <input
-                                    type="text"
-                                    inputMode="numeric"
-                                    value={rawHeight}
-                                    onChange={(e) => handleInputChange(e.target.value, "h")}
-                                    className="w-full border-2 border-slate-100 rounded-2xl p-4 focus:border-blue-600 bg-slate-50/50 outline-none font-mono text-lg transition-all"
-                                />
-                            </div>
+                            {(["w", "h"] as const).map((type) => (
+                                <div key={type}>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-2 block tracking-widest">
+                                        {type === "w" ? "Lățime Gol" : "Înălțime Gol"}
+                                    </label>
+                                    <div className="relative group">
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            value={type === "w" ? rawWidth : rawHeight}
+                                            onChange={(e) => handleInputChange(e.target.value, type)}
+                                            className="w-full border-2 border-slate-100 rounded-2xl p-4 focus:border-blue-600 bg-slate-50/50 outline-none font-mono text-lg transition-all"
+                                        />
+                                        <span className="absolute bottom-4 right-5 text-sm font-bold text-slate-300 group-focus-within:text-blue-500">
+                                            {unit}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </section>
 
@@ -130,17 +274,13 @@ export default function Configurator({ user, onCalculate, loading, price }: Conf
                                             : "border-slate-100 hover:border-slate-200"
                                     }`}
                                 >
-                  <span
-                      className="w-6 h-6 rounded-full border border-black/10 shadow-inner"
-                      style={{ backgroundColor: colorMap[c] }}
-                  />
                                     <span
-                                        className={`text-[11px] font-bold ${
-                                            frameColor === c ? "text-blue-700" : "text-slate-500"
-                                        }`}
-                                    >
-                    {c}
-                  </span>
+                                        className="w-6 h-6 rounded-full border border-black/10 shadow-inner"
+                                        style={{ backgroundColor: colorMap[c] }}
+                                    />
+                                    <span className={`text-[11px] font-bold ${frameColor === c ? "text-blue-700" : "text-slate-500"}`}>
+                                        {c}
+                                    </span>
                                 </button>
                             ))}
                         </div>
@@ -152,48 +292,38 @@ export default function Configurator({ user, onCalculate, loading, price }: Conf
                         </h4>
                         <div className="grid grid-cols-2 gap-4 text-[11px] font-bold">
                             <p className="text-slate-600 italic">
-                                Suprafață:{" "}
-                                <span className="text-slate-900 not-italic">
-                  {(wMm * hMm) / 1000000} m²
-                </span>
+                                Suprafață: <span className="text-slate-900 not-italic">{(wMm * hMm / 1_000_000).toFixed(2)} m²</span>
                             </p>
                             <p className="text-slate-600 italic">
-                                Tip:{" "}
-                                <span className="text-slate-900 not-italic uppercase tracking-tight">
-                  {plisseType}
-                </span>
+                                Tip: <span className="text-slate-900 not-italic uppercase tracking-tight">{plisseType}</span>
                             </p>
                         </div>
                     </section>
                 </div>
             </div>
 
-            {/* DREAPTA: Previzualizare și Preț */}
+            {/* ── DREAPTA: Previzualizare și Preț ── */}
             <div className="lg:col-span-5 bg-slate-100 p-8 md:p-12 flex flex-col justify-between relative overflow-hidden border-l border-slate-200">
-                {/* Efect de iluminare de fundal */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-gradient-to-b from-white to-slate-200 opacity-50 z-0" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-gradient-to-b from-white to-slate-200 opacity-50 z-0 pointer-events-none" />
 
                 <div className="relative z-10 flex justify-between items-center mb-8">
-                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                        Simulare Reală
-                    </h3>
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Simulare Vizuală</h3>
                     <div className="flex gap-2">
                         <button
                             onClick={() => setViewMode("2D")}
                             className={`text-[9px] font-bold px-3 py-1.5 rounded-lg border transition-all ${
-                                viewMode === "2D"
-                                    ? "bg-slate-800 text-white border-slate-800"
-                                    : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+                                viewMode === "2D" ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
                             }`}
                         >
                             2D
                         </button>
                         <button
-                            onClick={() => setViewMode("3D")}
+                            onClick={() => {
+                                setViewMode("3D");
+                                setRotation({ x: 15, y: -25 }); // Resetăm frumos rotația la default
+                            }}
                             className={`text-[9px] font-bold px-3 py-1.5 rounded-lg border transition-all ${
-                                viewMode === "3D"
-                                    ? "bg-slate-800 text-white border-slate-800"
-                                    : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+                                viewMode === "3D" ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
                             }`}
                         >
                             3D
@@ -201,91 +331,93 @@ export default function Configurator({ user, onCalculate, loading, price }: Conf
                     </div>
                 </div>
 
-                {/* Vizualizator plisă */}
+                {/* Vizualizator 2D/3D (ACUM ESTE INTERACTIV) */}
                 <div
-                    className="relative z-10 w-full h-[320px] flex flex-col items-center justify-center rounded-3xl bg-white border border-slate-300 shadow-xl overflow-hidden"
+                    ref={visualizerRef}
+                    onMouseDown={handleMouseDown}
+                    className={`relative z-10 w-full h-[320px] flex flex-col items-center justify-center rounded-3xl bg-white border border-slate-300 shadow-xl overflow-hidden ${
+                        viewMode === "3D" ? (isDragging ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-default'
+                    }`}
                     style={{ perspective: "1500px" }}
                 >
-                    {/* Liniile interioare ale ferestrei (geam) */}
                     <div className="absolute inset-0 bg-slate-50 flex items-center justify-center opacity-40">
                         <div className="w-full h-1 bg-slate-200 absolute top-1/2 -translate-y-1/2 shadow-sm" />
                         <div className="h-full w-1 bg-slate-200 absolute left-1/2 -translate-x-1/2 shadow-sm" />
                     </div>
 
+                    {/* Cadru Plisse - Optimizare performanță tranzitie & accelerare GPU */}
                     <div
-                        className="relative transition-all duration-1000 ease-out border-[14px]"
+                        className={`relative border-[14px] ${isDragging ? '' : 'transition-transform duration-500 ease-in-out'}`}
                         style={{
-                            ...getFrameStyling(),
+                            ...frameStyle,
                             width: `${wMm * scale}px`,
                             height: `${hMm * scale}px`,
-                            transform:
-                                viewMode === "3D" ? "rotateX(15deg) rotateY(-20deg)" : "none",
+                            transform: viewMode === "3D" ? `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)` : "rotateX(0deg) rotateY(0deg)",
+                            transformStyle: "preserve-3d",
+                            willChange: "transform", // Optimizare CRITICĂ pentru hardware acceleration (GPU)
                         }}
                     >
-                        {/* Mesh plisat (acordeon) */}
+                        {/* Plasa (Mesh) */}
                         <div
-                            className="absolute left-0 h-full overflow-hidden transition-all duration-100 ease-linear border-r-[10px]"
+                            className="absolute left-0 h-full overflow-hidden transition-all duration-300 ease-in-out border-r-[10px]"
                             style={{
                                 width: `${openLevel}%`,
                                 borderColor: colorMap[frameColor],
-                                background: `repeating-linear-gradient(to right, 
-                  rgba(0,0,0,0.1) 0px, 
-                  rgba(0,0,0,0.3) 4px, 
-                  rgba(0,0,0,0.1) 8px)`,
+                                background: `repeating-linear-gradient(to right, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.3) 4px, rgba(0,0,0,0.1) 8px)`,
+                                transform: viewMode === "3D" ? "translateZ(4px)" : "translateZ(0px)",
                             }}
                         >
                             <div className="w-full h-full opacity-30 bg-[radial-gradient(circle,#000_1px,transparent_1px)] bg-[size:3px_3px]" />
                         </div>
 
-                        {/* Fire de ghidaj subtile */}
-                        <div className="absolute top-1/4 left-0 w-full h-[1px] bg-black/10" />
-                        <div className="absolute bottom-1/4 left-0 w-full h-[1px] bg-black/10" />
+                        {/* Ațe de ghidaj */}
+                        <div className={`absolute top-1/4 left-0 w-full h-[1px] bg-black/10 transition-opacity duration-500 ${viewMode === "3D" ? 'opacity-100' : 'opacity-0'}`} />
+                        <div className={`absolute bottom-1/4 left-0 w-full h-[1px] bg-black/10 transition-opacity duration-500 ${viewMode === "3D" ? 'opacity-100' : 'opacity-0'}`} />
                     </div>
 
-                    <div className="absolute bottom-4 text-[9px] font-bold text-slate-400 bg-white/80 px-2 py-1 rounded">
-                        Glisează sliderul pentru operare
-                    </div>
+                    {/* Hint text */}
+                    {viewMode === "3D" && (
+                        <div className="absolute bottom-4 text-[9px] font-bold text-slate-400 bg-white/80 px-2 py-1 rounded pointer-events-none">
+                            {isDragging ? "Trage pentru rotire" : "Ține apăsat pentru a roti"}
+                        </div>
+                    )}
                 </div>
 
-                {/* Slider pentru nivelul de deschidere */}
                 <div className="relative z-10 mt-6 flex flex-col items-center">
                     <input
-                        type="range"
-                        min="5"
-                        max="95"
-                        value={openLevel}
+                        type="range" min="5" max="95" value={openLevel}
                         onChange={(e) => setOpenLevel(Number(e.target.value))}
                         className="w-full h-1.5 bg-slate-300 rounded-lg appearance-none cursor-pointer accent-blue-600"
                     />
                 </div>
 
-                {/* Preț și buton de acțiune */}
+                {/* Preț Final și Buton Coș */}
                 <div className="relative z-10 mt-8 space-y-5">
                     <div className="flex justify-between items-end border-b border-slate-200 pb-4">
                         <div className="flex flex-col">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                Preț Final (TVA inclus)
-              </span>
-                            <span className="text-5xl font-black text-slate-900 tracking-tighter">
-                {price ? `${price.toFixed(2)}` : "---"}
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                                Preț Final Calculat (TVA inclus)
+                            </span>
+                            <span className="text-5xl font-black text-slate-900 tracking-tighter transition-all">
+                                {calculatedPrice > 0 ? calculatedPrice.toFixed(2) : "0.00"}
                                 <span className="text-lg ml-1 text-blue-600 font-bold">RON</span>
-              </span>
+                            </span>
                         </div>
                     </div>
                     <button
-                        onClick={onCalculate}
-                        disabled={loading}
+                        onClick={handleAddToCart}
+                        disabled={isSubmitting || calculatedPrice === 0}
                         className={`w-full py-5 rounded-2xl font-black uppercase tracking-[0.15em] text-xs transition-all shadow-xl ${
-                            loading
+                            isSubmitting || calculatedPrice === 0
                                 ? "bg-slate-300 text-slate-500 cursor-not-allowed"
                                 : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200 active:scale-95 shadow-blue-500/20"
                         }`}
                     >
-                        {loading
-                            ? "Se trimite cererea..."
-                            : user
-                                ? "Adaugă în Coș"
-                                : "Autentificare pentru preț"}
+                        {isSubmitting
+                            ? "Se adaugă în coș..."
+                            : !user
+                                ? "Autentificare pentru Coș"
+                                : "Adaugă în Coș"}
                     </button>
                 </div>
             </div>
