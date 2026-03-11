@@ -21,7 +21,8 @@ export default function RegisterPage() {
         if (error) {
             setStatus({ type: 'error', message: error.message });
         } else {
-            setStatus({ type: 'success', message: 'Cont creat cu succes! Verifică adresa de email pentru confirmare.' });
+            // Am schimbat mesajul de confirmare aici:
+            setStatus({ type: 'success', message: 'Cont creat cu succes! Acum te poți autentifica.' });
             setEmail("");
             setPassword("");
         }
