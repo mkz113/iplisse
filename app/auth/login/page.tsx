@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../../../lib/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,6 +10,14 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [status, setStatus] = useState<{ type: 'error' | 'success' | '', message: string }>({ type: '', message: '' });
     const router = useRouter();
+
+    useEffect(() => {
+        const checkSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) router.push("/");
+        };
+        checkSession();
+    }, [router]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -24,7 +32,6 @@ export default function LoginPage() {
             setStatus({ type: 'error', message: 'Email sau parolă incorectă.' });
         } else {
             setStatus({ type: 'success', message: 'Autentificare reușită! Se încarcă...' });
-            // Redirecționăm utilizatorul către pagina principală după login
             router.push("/");
         }
     };

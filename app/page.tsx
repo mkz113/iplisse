@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabase/client"; // Asigură-te că calea este corectă
+import { useRouter } from "next/navigation";
 
 export default function ConstructorPlisse() {
     // --- 1. STATE-URI FRONTEND ---
@@ -13,6 +15,26 @@ export default function ConstructorPlisse() {
     const [viewMode, setViewMode] = useState<"2D" | "3D">("2D");
     const [price, setPrice] = useState<number | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
+
+    // Auth State
+    const [user, setUser] = useState<any>(null);
+    const router = useRouter();
+
+    // Verificăm dacă user-ul este logat
+    useEffect(() => {
+        const checkUser = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            setUser(session?.user || null);
+        };
+        checkUser();
+
+        // Ascultăm schimbările de stare (login/logout) în timp real
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setUser(session?.user || null);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
 
     // --- 2. MOTOR DE CONVERSIE ---
     const convertToMm = (value: number, currentUnit: string) => {
@@ -33,7 +55,6 @@ export default function ConstructorPlisse() {
     const visualWidth = widthMm * scale;
     const visualHeight = heightMm * scale;
 
-    // Randare culori profile (RAL)
     const getFrameStyling = () => {
         switch (frameColor) {
             case "Antracit (RAL 7016)":
@@ -46,16 +67,20 @@ export default function ConstructorPlisse() {
         }
     };
 
-    // --- 4. CALCUL PREȚ LOCAL (TEMPORAR) ---
+    // --- 4. CALCUL PREȚ / REDIRECȚIONARE LOGIN ---
     const handleCalculate = () => {
+        // Dacă nu e logat, îl trimitem la pagina de login
+        if (!user) {
+            router.push("/auth/login");
+            return;
+        }
+
         setLoading(true);
 
-        // Simulare delay pentru efect UX
+        // Aici va veni logica reală de calcul din Excel
         setTimeout(() => {
-            // Formulă de bază: calculăm suprafața în mp
             const areaSqm = (widthMm * heightMm) / 1000000;
-            // Preț de bază inventat (ex: 45 EUR / mp)
-            let basePrice = Math.max(areaSqm * 45, 30); // Minim 30 EUR per bucată
+            let basePrice = Math.max(areaSqm * 45, 30);
 
             if (meshType === "Fibră Sticlă (Anti-Pisică)") basePrice *= 1.2;
 
@@ -63,7 +88,6 @@ export default function ConstructorPlisse() {
             setLoading(false);
         }, 600);
     };
-
     return (
         <main className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 md:p-10 flex justify-center items-center">
             <div className="bg-white border border-slate-200 shadow-xl max-w-6xl w-full grid grid-cols-1 lg:grid-cols-12 overflow-hidden rounded-xl">
