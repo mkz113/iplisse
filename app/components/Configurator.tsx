@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase/client"; // Folosim instanța globală corectă!
+import { supabase } from "@/lib/supabase/client";
 
 interface ConfiguratorProps {
     user: any;
@@ -13,14 +13,14 @@ export default function Configurator({ user }: ConfiguratorProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [hydrated, setHydrated] = useState(false);
 
-    // Stare pentru Notificări (Pop-up)
+    // Stări Pop-up-uri
     const [toast, setToast] = useState<{ visible: boolean; message: string; type: "success" | "error" }>({
         visible: false,
         message: "",
         type: "success"
     });
+    const [showContactModal, setShowContactModal] = useState(false); // NOU: Stare pt modalul de contact
 
-    // Stări formular
     const [unit, setUnit] = useState<"mm" | "cm" | "m">("mm");
     const [rawWidth, setRawWidth] = useState<string>("1200");
     const [rawHeight, setRawHeight] = useState<string>("1500");
@@ -28,13 +28,11 @@ export default function Configurator({ user }: ConfiguratorProps) {
     const [openLevel, setOpenLevel] = useState<number>(70);
     const [viewMode, setViewMode] = useState<"2D" | "3D">("3D");
 
-    // Stări pentru 3D Interactive
     const [rotation, setRotation] = useState({ x: 15, y: -25 });
     const [isDragging, setIsDragging] = useState(false);
     const dragStart = useRef({ x: 0, y: 0 });
     const visualizerRef = useRef<HTMLDivElement>(null);
 
-    // Funcție ajutătoare pentru afișarea Pop-up-ului
     const showToast = (message: string, type: "success" | "error") => {
         setToast({ visible: true, message, type });
         setTimeout(() => setToast({ visible: false, message: "", type: "success" }), 3000);
@@ -132,7 +130,6 @@ export default function Configurator({ user }: ConfiguratorProps) {
         };
     }, [isDragging, handleMouseMove, handleMouseUp]);
 
-    // --- LOGICA REPARATĂ PENTRU COȘ + POP-UP ---
     const handleAddToCart = async () => {
         if (!user) {
             router.push("/auth/login");
@@ -144,9 +141,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
             const { data: { session } } = await supabase.auth.getSession();
             const activeUserId = session?.user?.id || user?.id;
 
-            if (!activeUserId) {
-                throw new Error("Sesiune expirată. Te rugăm să te reautentifici.");
-            }
+            if (!activeUserId) throw new Error("Sesiune expirată. Te rugăm să te reautentifici.");
 
             const { error } = await supabase
                 .from("orders")
@@ -163,23 +158,20 @@ export default function Configurator({ user }: ConfiguratorProps) {
             if (error) throw error;
 
             localStorage.removeItem("iplisse_config");
-
-            // Afișăm Pop-up-ul de succes
             showToast("Produsul a fost adăugat cu succes în coș!", "success");
 
-            // Așteptăm puțin ca utilizatorul să vadă mesajul, apoi îl ducem la coș
             setTimeout(() => {
                 router.push("/cart");
             }, 1500);
 
         } catch (err: any) {
             console.error("Eroare la adăugare:", err);
-            // Afișăm Pop-up-ul de eroare
             showToast(err.message || "Eroare de conexiune la adăugarea în coș.", "error");
-            setIsSubmitting(false); // Deblocăm butonul doar dacă dă eroare
+            setIsSubmitting(false);
         }
     };
 
+    // Paleta de culori standard
     const colorMap: Record<string, string> = {
         "Antracit (RAL 7016)": "#373e47",
         "Alb (RAL 9016)": "#ffffff",
@@ -202,7 +194,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
     return (
         <div className="bg-white border border-slate-200 shadow-2xl max-w-6xl w-full grid grid-cols-1 lg:grid-cols-12 overflow-hidden rounded-3xl transition-all relative">
 
-            {/* POP-UP NOTIFICATION COMPONENT */}
+            {/* POP-UP SUCCESS/ERROR */}
             {toast.visible && (
                 <div className={`fixed bottom-10 left-1/2 -translate-x-1/2 z-50 px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 transition-all transform animate-bounce ${
                     toast.type === "success" ? "bg-green-600 text-white shadow-green-500/30" : "bg-red-500 text-white shadow-red-500/30"
@@ -213,6 +205,56 @@ export default function Configurator({ user }: ConfiguratorProps) {
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     )}
                     <span className="font-bold text-sm tracking-wide">{toast.message}</span>
+                </div>
+            )}
+
+            {/* MODAL CULORI CUSTOM & OFERTE */}
+            {showContactModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl relative animate-in zoom-in-95 duration-200 border border-slate-100">
+                        {/* Buton Închidere */}
+                        <button
+                            onClick={() => setShowContactModal(false)}
+                            className="absolute top-5 right-5 text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 p-2 rounded-full transition-colors"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+
+                        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>
+                        </div>
+
+                        <h3 className="text-xl font-black text-slate-900 mb-3 tracking-tight">Culoare Custom sau Proiect Atipic?</h3>
+                        <p className="text-sm text-slate-500 mb-8 leading-relaxed font-medium">
+                            Dorești o nuanță specială din paletarul RAL, imitație de lemn sau ai dimensiuni atipice pentru geamurile tale? Contactează-ne direct și îți vom pregăti rapid o ofertă personalizată.
+                        </p>
+
+                        <div className="space-y-3">
+                            {/* Buton WhatsApp */}
+                            <a
+                                href="https://wa.me/40750424228"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full bg-[#25D366] text-white py-4 rounded-xl font-bold flex items-center justify-center gap-3 hover:bg-[#1ebd5b] transition-all shadow-md active:scale-95"
+                            >
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                    <path fillRule="evenodd" d="M12.031 2.016a9.96 9.96 0 00-8.528 15.112l-1.488 5.438 5.561-1.46a9.957 9.957 0 004.455 1.05h.004c5.498 0 9.966-4.468 9.966-9.966a9.969 9.969 0 00-2.92-7.048 9.966 9.966 0 00-7.05-2.926zm0 18.257h-.003a8.27 8.27 0 01-4.214-1.214l-.302-.178-3.13.823.839-3.053-.196-.312A8.252 8.252 0 013.73 11.982c0-4.562 3.712-8.275 8.274-8.275a8.268 8.268 0 015.852 2.427 8.266 8.266 0 012.425 5.85c0 4.563-3.712 8.275-8.275 8.275zm4.536-6.19c-.248-.125-1.472-.73-1.699-.813-.228-.084-.393-.125-.56.124-.165.25-.642.813-.785.98-.145.166-.289.187-.538.061-.249-.124-1.05-.386-2-1.23-.74-.658-1.24-1.471-1.385-1.72-.145-.25-.015-.385.11-.508.113-.11.249-.292.373-.438.125-.145.166-.25.25-.416.082-.167.042-.313-.02-.438-.063-.125-.56-1.352-.767-1.85-.201-.482-.405-.417-.56-.425h-.478c-.165 0-.435.063-.662.313-.228.25-.87.854-.87 2.083s.891 2.417 1.015 2.584c.125.166 1.762 2.688 4.27 3.77 1.545.666 2.148.718 2.923.603.854-.127 2.607-1.063 2.978-2.084.373-1.021.373-1.896.262-2.084-.112-.187-.414-.291-.663-.416z" clipRule="evenodd" />
+                                </svg>
+                                Discută pe WhatsApp
+                            </a>
+
+                            {/* Buton Email */}
+                            <a
+                                href="mailto:iplisse@proton.me"
+                                className="w-full border-2 border-slate-200 text-slate-700 py-4 rounded-xl font-bold flex items-center justify-center gap-3 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all shadow-sm active:scale-95"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                </svg>
+                                Trimite un Email
+                            </a>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -276,29 +318,48 @@ export default function Configurator({ user }: ConfiguratorProps) {
 
                     <section>
                         <h3 className="text-sm font-black text-slate-900 uppercase tracking-tighter mb-6">
-                            2. Selecție Finisaj RAL
+                            2. Selecție Finisaj (Profil)
                         </h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+                        {/* Butoane pentru culorile standard */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
                             {Object.keys(colorMap).map((c) => (
                                 <button
                                     key={c}
                                     onClick={() => setFrameColor(c)}
-                                    className={`group relative p-4 flex items-center gap-3 border-2 rounded-2xl transition-all ${
+                                    className={`group relative p-4 flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-3 border-2 rounded-2xl transition-all ${
                                         frameColor === c
                                             ? "border-blue-600 bg-blue-50/50 shadow-sm"
-                                            : "border-slate-100 hover:border-slate-200"
+                                            : "border-slate-100 hover:border-slate-200 bg-white"
                                     }`}
                                 >
                                     <span
-                                        className="w-6 h-6 rounded-full border border-black/10 shadow-inner"
+                                        className="w-6 h-6 rounded-full border border-black/10 shadow-inner flex-shrink-0"
                                         style={{ backgroundColor: colorMap[c] }}
                                     />
-                                    <span className={`text-[11px] font-bold ${frameColor === c ? "text-blue-700" : "text-slate-500"}`}>
+                                    <span className={`text-[10px] sm:text-[11px] text-center sm:text-left font-bold ${frameColor === c ? "text-blue-700" : "text-slate-500"}`}>
                                         {c}
                                     </span>
                                 </button>
                             ))}
                         </div>
+
+                        {/* Banner/Buton pentru cereri custom */}
+                        <button
+                            onClick={() => setShowContactModal(true)}
+                            className="w-full flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-2xl hover:bg-blue-50 hover:border-blue-200 transition-all group"
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center justify-center group-hover:shadow-md transition-all">
+                                    <svg className="w-5 h-5 text-slate-500 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>
+                                </div>
+                                <div className="text-left">
+                                    <p className="text-[11px] font-black text-slate-800 uppercase tracking-widest">Culoare Custom / Proiect Atipic?</p>
+                                    <p className="text-xs text-slate-500 mt-0.5 font-medium">Apasă aici pentru a cere o ofertă personalizată.</p>
+                                </div>
+                            </div>
+                            <svg className="w-5 h-5 text-slate-400 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                        </button>
                     </section>
 
                     <section className="bg-blue-50/30 p-6 rounded-2xl border border-blue-100/50">
