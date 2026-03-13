@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { createBrowserClient } from "@supabase/ssr";
+import { supabase } from "@/lib/supabase/client"; // Folosim instanța globală corectă!
 
 interface ConfiguratorProps {
     user: any;
@@ -13,6 +13,13 @@ export default function Configurator({ user }: ConfiguratorProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [hydrated, setHydrated] = useState(false);
 
+    // Stare pentru Notificări (Pop-up)
+    const [toast, setToast] = useState<{ visible: boolean; message: string; type: "success" | "error" }>({
+        visible: false,
+        message: "",
+        type: "success"
+    });
+
     // Stări formular
     const [unit, setUnit] = useState<"mm" | "cm" | "m">("mm");
     const [rawWidth, setRawWidth] = useState<string>("1200");
@@ -21,18 +28,18 @@ export default function Configurator({ user }: ConfiguratorProps) {
     const [openLevel, setOpenLevel] = useState<number>(70);
     const [viewMode, setViewMode] = useState<"2D" | "3D">("3D");
 
-    // Stări pentru 3D Interactive (Cursor Grab)
+    // Stări pentru 3D Interactive
     const [rotation, setRotation] = useState({ x: 15, y: -25 });
     const [isDragging, setIsDragging] = useState(false);
     const dragStart = useRef({ x: 0, y: 0 });
     const visualizerRef = useRef<HTMLDivElement>(null);
 
-    const supabase = useMemo(() => createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    ), []);
+    // Funcție ajutătoare pentru afișarea Pop-up-ului
+    const showToast = (message: string, type: "success" | "error") => {
+        setToast({ visible: true, message, type });
+        setTimeout(() => setToast({ visible: false, message: "", type: "success" }), 3000);
+    };
 
-    // 1. Recuperare din LocalStorage
     useEffect(() => {
         try {
             const saved = localStorage.getItem("iplisse_config");
@@ -45,13 +52,11 @@ export default function Configurator({ user }: ConfiguratorProps) {
                 setViewMode(p.viewMode || "3D");
             }
         } catch {
-            // Ignorăm cache-ul corupt
         } finally {
             setHydrated(true);
         }
     }, []);
 
-    // 2. Salvare automată în LocalStorage
     useEffect(() => {
         if (!hydrated) return;
         localStorage.setItem(
@@ -60,7 +65,6 @@ export default function Configurator({ user }: ConfiguratorProps) {
         );
     }, [rawWidth, rawHeight, unit, frameColor, viewMode, hydrated]);
 
-    // Calcule Dimensiuni
     const handleInputChange = (val: string, type: "w" | "h") => {
         const cleanVal = val.replace(/[^0-9]/g, "").replace(/^0+/, "") || "0";
         if (type === "w") setRawWidth(cleanVal);
@@ -84,7 +88,6 @@ export default function Configurator({ user }: ConfiguratorProps) {
         return "Plisse Orizontal";
     }, [hMm]);
 
-    // 3. Calcul Preț Automat
     const calculatedPrice = useMemo(() => {
         if (wMm === 0 || hMm === 0) return 0;
         const areaMp = (wMm * hMm) / 1_000_000;
@@ -93,7 +96,6 @@ export default function Configurator({ user }: ConfiguratorProps) {
         return (areaMp * pricePerMp) + baseFee;
     }, [wMm, hMm]);
 
-    // --- LOGICA 3D INTERACTIVĂ (OPTMIZATĂ) ---
     const handleMouseDown = (e: React.MouseEvent) => {
         if (viewMode !== "3D") return;
         setIsDragging(true);
@@ -102,22 +104,19 @@ export default function Configurator({ user }: ConfiguratorProps) {
 
     const handleMouseMove = useCallback((e: MouseEvent) => {
         if (!isDragging || viewMode !== "3D") return;
-
         const deltaX = e.clientX - dragStart.current.x;
         const deltaY = e.clientY - dragStart.current.y;
         const sensitivity = 0.4;
 
         setRotation(prev => ({
-            x: Math.max(-60, Math.min(60, prev.x - deltaY * sensitivity)), // Limităm axa X ca să nu se dea peste cap
+            x: Math.max(-60, Math.min(60, prev.x - deltaY * sensitivity)),
             y: prev.y + deltaX * sensitivity
         }));
 
         dragStart.current = { x: e.clientX, y: e.clientY };
     }, [isDragging, viewMode]);
 
-    const handleMouseUp = useCallback(() => {
-        setIsDragging(false);
-    }, []);
+    const handleMouseUp = useCallback(() => setIsDragging(false), []);
 
     useEffect(() => {
         if (isDragging) {
@@ -133,49 +132,51 @@ export default function Configurator({ user }: ConfiguratorProps) {
         };
     }, [isDragging, handleMouseMove, handleMouseUp]);
 
-    // 4. Logica de adăugare în coș
+    // --- LOGICA REPARATĂ PENTRU COȘ + POP-UP ---
     const handleAddToCart = async () => {
         if (!user) {
-            window.location.href = "/auth/login";
+            router.push("/auth/login");
             return;
         }
 
         setIsSubmitting(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                window.location.href = "/auth/login";
-                return;
+            const activeUserId = session?.user?.id || user?.id;
+
+            if (!activeUserId) {
+                throw new Error("Sesiune expirată. Te rugăm să te reautentifici.");
             }
 
-            const response = await fetch("/api/orders", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({
+            const { error } = await supabase
+                .from("orders")
+                .insert([{
+                    user_id: activeUserId,
                     width: wMm,
                     height: hMm,
-                    frameColor,
-                    plisseType,
+                    frame_color: frameColor,
+                    plisse_type: plisseType,
                     price: calculatedPrice,
-                }),
-            });
+                    status: 'pending'
+                }]);
 
-            if (!response.ok) {
-                const err = await response.json().catch(() => ({}));
-                throw new Error(err.error || "Eroare la adăugarea în coș.");
-            }
+            if (error) throw error;
 
             localStorage.removeItem("iplisse_config");
-            const order = await response.json();
-            router.push(`/orders/${order.id}`);
+
+            // Afișăm Pop-up-ul de succes
+            showToast("Produsul a fost adăugat cu succes în coș!", "success");
+
+            // Așteptăm puțin ca utilizatorul să vadă mesajul, apoi îl ducem la coș
+            setTimeout(() => {
+                router.push("/cart");
+            }, 1500);
+
         } catch (err: any) {
-            console.error(err);
-            alert(err.message || "A apărut o problemă. Încearcă din nou.");
-        } finally {
-            setIsSubmitting(false);
+            console.error("Eroare la adăugare:", err);
+            // Afișăm Pop-up-ul de eroare
+            showToast(err.message || "Eroare de conexiune la adăugarea în coș.", "error");
+            setIsSubmitting(false); // Deblocăm butonul doar dacă dă eroare
         }
     };
 
@@ -199,7 +200,22 @@ export default function Configurator({ user }: ConfiguratorProps) {
     if (!hydrated) return null;
 
     return (
-        <div className="bg-white border border-slate-200 shadow-2xl max-w-6xl w-full grid grid-cols-1 lg:grid-cols-12 overflow-hidden rounded-3xl transition-all">
+        <div className="bg-white border border-slate-200 shadow-2xl max-w-6xl w-full grid grid-cols-1 lg:grid-cols-12 overflow-hidden rounded-3xl transition-all relative">
+
+            {/* POP-UP NOTIFICATION COMPONENT */}
+            {toast.visible && (
+                <div className={`fixed bottom-10 left-1/2 -translate-x-1/2 z-50 px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 transition-all transform animate-bounce ${
+                    toast.type === "success" ? "bg-green-600 text-white shadow-green-500/30" : "bg-red-500 text-white shadow-red-500/30"
+                }`}>
+                    {toast.type === "success" ? (
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                    ) : (
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    )}
+                    <span className="font-bold text-sm tracking-wide">{toast.message}</span>
+                </div>
+            )}
+
             <style dangerouslySetInnerHTML={{
                 __html: `
                     input[type=range]::-webkit-slider-thumb {
@@ -213,7 +229,6 @@ export default function Configurator({ user }: ConfiguratorProps) {
                 `,
             }} />
 
-            {/* ── STÂNGA: Configurare ── */}
             <div className="lg:col-span-7 p-8 md:p-12 bg-white">
                 <div className="space-y-10">
                     <section>
@@ -302,7 +317,6 @@ export default function Configurator({ user }: ConfiguratorProps) {
                 </div>
             </div>
 
-            {/* ── DREAPTA: Previzualizare și Preț ── */}
             <div className="lg:col-span-5 bg-slate-100 p-8 md:p-12 flex flex-col justify-between relative overflow-hidden border-l border-slate-200">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-gradient-to-b from-white to-slate-200 opacity-50 z-0 pointer-events-none" />
 
@@ -320,7 +334,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
                         <button
                             onClick={() => {
                                 setViewMode("3D");
-                                setRotation({ x: 15, y: -25 }); // Resetăm frumos rotația la default
+                                setRotation({ x: 15, y: -25 });
                             }}
                             className={`text-[9px] font-bold px-3 py-1.5 rounded-lg border transition-all ${
                                 viewMode === "3D" ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
@@ -331,7 +345,6 @@ export default function Configurator({ user }: ConfiguratorProps) {
                     </div>
                 </div>
 
-                {/* Vizualizator 2D/3D (ACUM ESTE INTERACTIV) */}
                 <div
                     ref={visualizerRef}
                     onMouseDown={handleMouseDown}
@@ -345,7 +358,6 @@ export default function Configurator({ user }: ConfiguratorProps) {
                         <div className="h-full w-1 bg-slate-200 absolute left-1/2 -translate-x-1/2 shadow-sm" />
                     </div>
 
-                    {/* Cadru Plisse - Optimizare performanță tranzitie & accelerare GPU */}
                     <div
                         className={`relative border-[14px] ${isDragging ? '' : 'transition-transform duration-500 ease-in-out'}`}
                         style={{
@@ -354,10 +366,9 @@ export default function Configurator({ user }: ConfiguratorProps) {
                             height: `${hMm * scale}px`,
                             transform: viewMode === "3D" ? `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)` : "rotateX(0deg) rotateY(0deg)",
                             transformStyle: "preserve-3d",
-                            willChange: "transform", // Optimizare CRITICĂ pentru hardware acceleration (GPU)
+                            willChange: "transform",
                         }}
                     >
-                        {/* Plasa (Mesh) */}
                         <div
                             className="absolute left-0 h-full overflow-hidden transition-all duration-300 ease-in-out border-r-[10px]"
                             style={{
@@ -370,12 +381,10 @@ export default function Configurator({ user }: ConfiguratorProps) {
                             <div className="w-full h-full opacity-30 bg-[radial-gradient(circle,#000_1px,transparent_1px)] bg-[size:3px_3px]" />
                         </div>
 
-                        {/* Ațe de ghidaj */}
                         <div className={`absolute top-1/4 left-0 w-full h-[1px] bg-black/10 transition-opacity duration-500 ${viewMode === "3D" ? 'opacity-100' : 'opacity-0'}`} />
                         <div className={`absolute bottom-1/4 left-0 w-full h-[1px] bg-black/10 transition-opacity duration-500 ${viewMode === "3D" ? 'opacity-100' : 'opacity-0'}`} />
                     </div>
 
-                    {/* Hint text */}
                     {viewMode === "3D" && (
                         <div className="absolute bottom-4 text-[9px] font-bold text-slate-400 bg-white/80 px-2 py-1 rounded pointer-events-none">
                             {isDragging ? "Trage pentru rotire" : "Ține apăsat pentru a roti"}
@@ -391,7 +400,6 @@ export default function Configurator({ user }: ConfiguratorProps) {
                     />
                 </div>
 
-                {/* Preț Final și Buton Coș */}
                 <div className="relative z-10 mt-8 space-y-5">
                     <div className="flex justify-between items-end border-b border-slate-200 pb-4">
                         <div className="flex flex-col">
