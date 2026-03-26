@@ -12,6 +12,8 @@ export default function Configurator({ user }: ConfiguratorProps) {
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [hydrated, setHydrated] = useState(false);
+    const [logoClickCount, setLogoClickCount] = useState(0);
+    const logoClickTimeout = useRef<NodeJS.Timeout | null>(null);
 
     // Stări Pop-up-uri
     const [toast, setToast] = useState<{ visible: boolean; message: string; type: "success" | "error" }>({
@@ -20,12 +22,14 @@ export default function Configurator({ user }: ConfiguratorProps) {
     const [showContactModal, setShowContactModal] = useState(false);
 
     // Stări Configurator
+    const [meshType, setMeshType] = useState<"type1" | "type2" | "type3">("type1");
     const [unit, setUnit] = useState<"mm" | "cm" | "m">("mm");
     const [rawWidth, setRawWidth] = useState<string>("1200");
     const [rawHeight, setRawHeight] = useState<string>("1500");
     const [frameColor, setFrameColor] = useState<string>("Antracit (RAL 7016)");
     const [openLevel, setOpenLevel] = useState<number>(70);
     const [viewMode, setViewMode] = useState<"2D" | "3D">("3D");
+    const [exchangeRate, setExchangeRate] = useState<number>(5.0); // EUR to RON
 
     // Stări Interactivitate 3D
     const [rotation, setRotation] = useState({ x: 15, y: -25 });
@@ -38,16 +42,33 @@ export default function Configurator({ user }: ConfiguratorProps) {
         setTimeout(() => setToast({ visible: false, message: "", type: "success" }), 3000);
     };
 
+    // Handler pentru logo clicks (5 clicks → admin)
+    const handleLogoClick = () => {
+        if (logoClickTimeout.current) clearTimeout(logoClickTimeout.current);
+        
+        const newCount = logoClickCount + 1;
+        setLogoClickCount(newCount);
+        
+        if (newCount >= 5) {
+            router.push("/admin");
+            setLogoClickCount(0);
+        } else {
+            logoClickTimeout.current = setTimeout(() => setLogoClickCount(0), 2000);
+        }
+    };
+
     useEffect(() => {
         try {
             const saved = localStorage.getItem("iplisse_config");
             if (saved) {
                 const p = JSON.parse(saved);
+                setMeshType(p.meshType || "type1");
                 setRawWidth(p.rawWidth || "1200");
                 setRawHeight(p.rawHeight || "1500");
                 setUnit(p.unit || "mm");
                 setFrameColor(p.frameColor || "Antracit (RAL 7016)");
                 setViewMode(p.viewMode || "3D");
+                setExchangeRate(p.exchangeRate || 5.0);
             }
         } catch {
         } finally {
@@ -57,8 +78,10 @@ export default function Configurator({ user }: ConfiguratorProps) {
 
     useEffect(() => {
         if (!hydrated) return;
-        localStorage.setItem("iplisse_config", JSON.stringify({ rawWidth, rawHeight, unit, frameColor, viewMode }));
-    }, [rawWidth, rawHeight, unit, frameColor, viewMode, hydrated]);
+        localStorage.setItem("iplisse_config", JSON.stringify({ 
+            meshType, rawWidth, rawHeight, unit, frameColor, viewMode, exchangeRate 
+        }));
+    }, [meshType, rawWidth, rawHeight, unit, frameColor, viewMode, exchangeRate, hydrated]);
 
     const handleInputChange = (val: string, type: "w" | "h") => {
         const cleanVal = val.replace(/[^0-9]/g, "").replace(/^0+/, "") || "0";
@@ -76,6 +99,63 @@ export default function Configurator({ user }: ConfiguratorProps) {
     const wMm = useMemo(() => Math.round(convertToMm(rawWidth, unit)), [rawWidth, unit]);
     const hMm = useMemo(() => Math.round(convertToMm(rawHeight, unit)), [rawHeight, unit]);
 
+    // =========================================================
+    // MATRICE PREȚURI EUR (din Excel)
+    // =========================================================
+    const pricingData = {
+        plase_1_canat: {
+            widthLimits: [500, 700, 900, 1100, 1300, 1500, 1700],
+            heightLimits: [700, 900, 1100, 1300, 1500, 1700, 1900, 2100, 2300, 2500, 2700, 2900],
+            matrix: [
+                [46.97, 46.97, 46.97, 46.97, 53.43, 61.65, 69.88],
+                [46.97, 46.97, 47.55, 58.13, 68.70, 79.27, 89.84],
+                [46.97, 46.97, 58.13, 71.05, 83.97, 96.88, 109.80],
+                [46.97, 53.25, 68.70, 83.97, 99.23, 114.50, 129.77],
+                [46.97, 61.64, 79.27, 96.88, 114.50, 132.12, 149.73],
+                [49.91, 69.87, 89.84, 109.80, 129.77, 149.73, 169.70],
+                [55.78, 78.09, 100.41, 122.72, 145.03, 167.35, 189.68],
+                [61.65, 86.31, 110.98, 135.64, 160.30, 184.96, 209.63],
+                [67.52, 94.54, 121.55, 148.56, 175.57, 202.58, 229.59],
+                [73.40, 102.76, 132.11, 161.48, 190.84, 220.20, 249.68],
+                [79.27, 110.98, 142.69, 174.40, 206.10, 237.81, 269.52],
+                [85.14, 119.20, 153.26, 187.31, 221.37, 255.43, 289.49]
+            ]
+        },
+        plase_2_canate: {
+            widthLimits: [500, 700, 900, 1100, 1300, 1500, 1700, 1900, 2100, 2300, 2500, 2700, 2900, 3100],
+            heightLimits: [700, 900, 1100, 1300, 1500, 1700, 1900, 2100, 2300, 2500, 2700],
+            matrix: [
+                [56.86, 56.86, 51.17, 51.17, 58.23, 67.23, 76.23, 85.23, 94.23, 103.05, 112.05, 121.05, 130.05, 139.05],
+                [56.86, 59.70, 57.64, 63.35, 75.00, 86.47, 97.94, 109.58, 121.05, 132.52, 144.17, 155.64, 167.11, 178.76],
+                [62.54, 59.70, 63.35, 77.47, 91.58, 105.52, 119.64, 133.76, 147.88, 162.00, 176.11, 190.23, 204.17, 218.29],
+                [65.39, 67.94, 75.00, 91.58, 108.17, 124.94, 141.52, 158.29, 174.88, 191.47, 208.23, 225.00, 241.41, 258.17],
+                [73.92, 74.70, 86.47, 105.70, 124.94, 144.17, 163.23, 182.47, 201.70, 220.94, 240.17, 259.41, 278.64, 297.88],
+                [78.50, 84.70, 97.94, 119.82, 141.52, 163.41, 174.17, 206.82, 228.70, 250.41, 272.29, 294.00, 315.17, 337.58],
+                [87.94, 94.70, 109.41, 133.76, 158.11, 182.47, 206.82, 231.17, 255.52, 279.88, 304.23, 328.58, 352.94, 377.29],
+                [97.11, 104.50, 121.05, 147.88, 174.88, 201.70, 228.70, 255.52, 282.52, 309.35, 336.35, 363.17, 390.17, 417.00],
+                [106.29, 114.50, 132.52, 162.00, 191.47, 220.94, 250.41, 279.88, 309.35, 338.82, 368.29, 397.76, 427.23, 456.70],
+                [115.47, 124.50, 144.00, 176.11, 208.05, 240.17, 272.11, 304.41, 336.17, 368.29, 400.23, 432.35, 464.29, 496.41],
+                [124.90, 134.50, 155.64, 190.23, 224.82, 259.41, 294.00, 328.58, 370.58, 397.76, 432.35, 466.94, 501.52, 536.11]
+            ]
+        }
+    };
+
+    // Funcție lookup preț din matrice
+    const getPriceFromMatrix = useCallback((width: number, height: number, type: "type1" | "type2" | "type3"): number => {
+        const data = (type === "type3") ? pricingData.plase_2_canate : pricingData.plase_1_canat;
+        
+        // Găsește index pentru lățime
+        let widthIndex = data.widthLimits.findIndex(limit => width <= limit);
+        if (widthIndex === -1) widthIndex = data.widthLimits.length - 1;
+        
+        // Găsește index pentru înălțime
+        let heightIndex = data.heightLimits.findIndex(limit => height <= limit);
+        if (heightIndex === -1) heightIndex = data.heightLimits.length - 1;
+        
+        // Returnează prețul din matrice
+        return data.matrix[heightIndex]?.[widthIndex] || 46.97; // fallback la prețul minim
+    }, []);
+
     // Scale calculat responsiv (mai mic pe ecrane mici)
     const [scaleMultiplier, setScaleMultiplier] = useState(240);
     useEffect(() => {
@@ -88,16 +168,21 @@ export default function Configurator({ user }: ConfiguratorProps) {
     const scale = useMemo(() => Math.min(scaleMultiplier / Math.max(wMm, 1), scaleMultiplier / Math.max(hMm, 1)), [wMm, hMm, scaleMultiplier]);
 
     const plisseType = useMemo(() => {
-        if (hMm > 2200) return "Plisse XL Orizontal";
-        if (hMm < 800) return "Plisse Vertical";
-        return "Plisse Orizontal";
-    }, [hMm]);
+        if (meshType === "type1") return "Plasă 1 canat - Vertical";
+        if (meshType === "type2") return "Plasă 1 canat - Orizontal";
+        return "Plasă 2 canate";
+    }, [meshType]);
 
-    const calculatedPrice = useMemo(() => {
+    // Calculare preț în EUR din matrice
+    const basePriceEur = useMemo(() => {
         if (wMm === 0 || hMm === 0) return 0;
-        const areaMp = (wMm * hMm) / 1_000_000;
-        return (areaMp * 250) + 50;
-    }, [wMm, hMm]);
+        return getPriceFromMatrix(wMm, hMm, meshType);
+    }, [wMm, hMm, meshType, getPriceFromMatrix]);
+
+    // Preț final în RON (bazat pe curs)
+    const calculatedPrice = useMemo(() => {
+        return basePriceEur * exchangeRate;
+    }, [basePriceEur, exchangeRate]);
 
     // =========================================================
     // LOGICĂ DRAG & DROP OPTIMIZATĂ PENTRU MOBIL
@@ -160,8 +245,16 @@ export default function Configurator({ user }: ConfiguratorProps) {
             if (!activeUserId) throw new Error("Sesiune expirată. Te rugăm să te reautentifici.");
 
             const { error } = await supabase.from("orders").insert([{
-                user_id: activeUserId, width: wMm, height: hMm, frame_color: frameColor,
-                plisse_type: plisseType, price: calculatedPrice, status: 'pending'
+                user_id: activeUserId, 
+                width: wMm, 
+                height: hMm, 
+                frame_color: frameColor,
+                plisse_type: plisseType, 
+                mesh_type: meshType,
+                base_price_eur: basePriceEur,
+                exchange_rate: exchangeRate,
+                price: calculatedPrice, 
+                status: 'pending'
             }]);
 
             if (error) throw error;
@@ -211,10 +304,55 @@ export default function Configurator({ user }: ConfiguratorProps) {
                         width: 24px; height: 24px;
                         background: #2563eb; border-radius: 50%;
                         cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+                        transition: all 0.2s ease;
                     }
                     @media (min-width: 1024px) {
                         input[type=range]::-webkit-slider-thumb { width: 18px; height: 18px; }
-                        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
+                        input[type=range]::-webkit-slider-thumb:hover { 
+                            transform: scale(1.15); 
+                            background: #1d4ed8;
+                            box-shadow: 0 3px 8px rgba(37,99,235,0.4);
+                        }
+                    }
+                    
+                    /* Animații smooth pentru configurator */
+                    @keyframes fadeInScale {
+                        from { opacity: 0; transform: scale(0.95); }
+                        to { opacity: 1; transform: scale(1); }
+                    }
+                    
+                    @keyframes shimmer {
+                        0% { background-position: -1000px 0; }
+                        100% { background-position: 1000px 0; }
+                    }
+                    
+                    .mesh-animate {
+                        animation: fadeInScale 0.4s ease-out;
+                    }
+                    
+                    .mesh-shadow-dynamic {
+                        filter: drop-shadow(0 20px 35px rgba(0,0,0,0.15)) 
+                                drop-shadow(0 8px 15px rgba(0,0,0,0.1));
+                        transition: filter 0.3s ease;
+                    }
+                    
+                    .mesh-shadow-dynamic:hover {
+                        filter: drop-shadow(0 25px 45px rgba(0,0,0,0.2)) 
+                                drop-shadow(0 12px 20px rgba(0,0,0,0.15));
+                    }
+                    
+                    /* Efect de material pentru plasa */
+                    .plisse-fabric {
+                        background: 
+                            repeating-linear-gradient(90deg, 
+                                rgba(0,0,0,0.05) 0px, 
+                                rgba(0,0,0,0.15) 2px, 
+                                rgba(0,0,0,0.08) 4px,
+                                rgba(0,0,0,0.02) 6px,
+                                rgba(0,0,0,0.05) 8px
+                            ),
+                            radial-gradient(circle at 30% 30%, rgba(255,255,255,0.1) 0%, transparent 50%);
+                        transition: all 0.3s ease;
                     }
                 `,
             }} />
@@ -256,9 +394,33 @@ export default function Configurator({ user }: ConfiguratorProps) {
                 <div className="order-first lg:order-last lg:col-span-5 bg-slate-100 p-5 sm:p-8 lg:p-12 flex flex-col justify-between border-b lg:border-b-0 lg:border-l border-slate-200 relative z-20">
                     <div className="flex justify-between items-center mb-4 lg:mb-8">
                         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Simulare 3D</h3>
-                        <div className="flex gap-2">
-                            <button onClick={() => setViewMode("2D")} className={`text-[9px] font-bold px-3 py-1.5 rounded-lg border transition-all ${viewMode === "2D" ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500"}`}>2D</button>
-                            <button onClick={() => { setViewMode("3D"); setRotation({ x: 15, y: -25 }); }} className={`text-[9px] font-bold px-3 py-1.5 rounded-lg border transition-all ${viewMode === "3D" ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500"}`}>3D</button>
+                        <div className="flex gap-2 bg-slate-100/80 p-1 rounded-xl backdrop-blur-sm">
+                            <button 
+                                onClick={() => setViewMode("2D")} 
+                                className={`text-[9px] font-bold px-3 py-2 rounded-lg border transition-all duration-200 flex items-center gap-1.5 ${
+                                    viewMode === "2D" 
+                                        ? "bg-slate-800 text-white border-slate-800 shadow-md" 
+                                        : "bg-white text-slate-500 border-slate-200 hover:border-slate-300"
+                                }`}
+                            >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5z" />
+                                </svg>
+                                2D
+                            </button>
+                            <button 
+                                onClick={() => { setViewMode("3D"); setRotation({ x: 15, y: -25 }); }} 
+                                className={`text-[9px] font-bold px-3 py-2 rounded-lg border transition-all duration-200 flex items-center gap-1.5 ${
+                                    viewMode === "3D" 
+                                        ? "bg-slate-800 text-white border-slate-800 shadow-md" 
+                                        : "bg-white text-slate-500 border-slate-200 hover:border-slate-300"
+                                }`}
+                            >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                </svg>
+                                3D
+                            </button>
                         </div>
                     </div>
 
@@ -268,38 +430,176 @@ export default function Configurator({ user }: ConfiguratorProps) {
                         className={`relative w-full h-[240px] sm:h-[300px] lg:h-[320px] flex flex-col items-center justify-center rounded-2xl lg:rounded-3xl bg-white border border-slate-300 shadow-md lg:shadow-xl overflow-hidden touch-manipulation-none ${viewMode === "3D" ? 'cursor-grab' : ''}`}
                         style={{ perspective: "1500px" }}
                     >
-                        <div className="absolute inset-0 bg-slate-50 flex items-center justify-center opacity-40 pointer-events-none">
-                            <div className="w-full h-1 bg-slate-200 absolute top-1/2 -translate-y-1/2" />
-                            <div className="h-full w-1 bg-slate-200 absolute left-1/2 -translate-x-1/2" />
+                        {/* Grid background îmbunătățit */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-slate-100 to-slate-50 flex items-center justify-center opacity-50 pointer-events-none">
+                            <div className="w-full h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent absolute top-1/2 -translate-y-1/2" />
+                            <div className="h-full w-px bg-gradient-to-b from-transparent via-slate-300 to-transparent absolute left-1/2 -translate-x-1/2" />
+                            {/* Gradient radial pentru depth */}
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_0%,rgba(0,0,0,0.03)_100%)]" />
                         </div>
 
                         <div
-                            className="relative border-[10px] lg:border-[14px] pointer-events-none"
+                            className="relative border-[10px] lg:border-[14px] pointer-events-none mesh-animate mesh-shadow-dynamic transition-all duration-300"
                             style={{
-                                ...frameStyle, width: `${wMm * scale}px`, height: `${hMm * scale}px`,
-                                transform: viewMode === "3D" ? `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)` : "rotateX(0deg) rotateY(0deg)",
+                                ...frameStyle, 
+                                width: `${wMm * scale}px`, 
+                                height: `${hMm * scale}px`,
+                                transform: viewMode === "3D" 
+                                    ? `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)` 
+                                    : "rotateX(0deg) rotateY(0deg)",
                                 transformStyle: "preserve-3d",
+                                transition: "transform 0.15s ease-out, box-shadow 0.3s ease",
                             }}
                         >
-                            <div
-                                className="absolute left-0 h-full overflow-hidden border-r-[6px] lg:border-r-[10px]"
-                                style={{
-                                    width: `${openLevel}%`, borderColor: colorMap[frameColor],
-                                    background: `repeating-linear-gradient(to right, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.3) 4px, rgba(0,0,0,0.1) 8px)`,
-                                    transform: viewMode === "3D" ? "translateZ(4px)" : "translateZ(0px)",
-                                }}
-                            >
-                                <div className="w-full h-full opacity-30 bg-[radial-gradient(circle,#000_1px,transparent_1px)] bg-[size:3px_3px]" />
-                            </div>
+                            {/* Type 1: Vertical - 1 canat vertical în centru */}
+                            {meshType === "type1" && (
+                                <>
+                                    <div
+                                        className="absolute left-0 h-full overflow-hidden border-r-[4px] lg:border-r-[6px] plisse-fabric transition-all duration-300"
+                                        style={{
+                                            width: `${openLevel}%`, 
+                                            borderColor: colorMap[frameColor],
+                                            transform: viewMode === "3D" ? "translateZ(6px)" : "translateZ(0px)",
+                                            boxShadow: viewMode === "3D" 
+                                                ? "inset -2px 0 8px rgba(0,0,0,0.2), 2px 0 12px rgba(0,0,0,0.15)" 
+                                                : "inset -1px 0 4px rgba(0,0,0,0.1)",
+                                        }}
+                                    >
+                                        <div className="w-full h-full opacity-40 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.1)_1px,transparent_1px)] bg-[size:4px_4px]" />
+                                        {/* Light reflection */}
+                                        <div className="absolute top-0 left-0 w-1/3 h-full bg-gradient-to-r from-white/10 to-transparent pointer-events-none" />
+                                    </div>
+                                    {/* Canat vertical în centru - îmbunătățit */}
+                                    <div 
+                                        className="absolute h-full w-1.5 lg:w-2 rounded-full transition-all duration-300"
+                                        style={{
+                                            left: '50%',
+                                            background: `linear-gradient(to right, rgba(0,0,0,0.3), rgba(0,0,0,0.6), rgba(0,0,0,0.3))`,
+                                            transform: viewMode === "3D" 
+                                                ? "translateX(-50%) translateZ(8px)" 
+                                                : "translateX(-50%) translateZ(0px)",
+                                            boxShadow: viewMode === "3D"
+                                                ? "0 4px 12px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.1)"
+                                                : "0 2px 6px rgba(0,0,0,0.2)",
+                                        }}
+                                    />
+                                </>
+                            )}
+
+                            {/* Type 2: Orizontal - 1 canat orizontal în centru */}
+                            {meshType === "type2" && (
+                                <>
+                                    <div
+                                        className="absolute top-0 w-full overflow-hidden border-b-[4px] lg:border-b-[6px] plisse-fabric transition-all duration-300"
+                                        style={{
+                                            height: `${openLevel}%`, 
+                                            borderColor: colorMap[frameColor],
+                                            transform: viewMode === "3D" ? "translateZ(6px)" : "translateZ(0px)",
+                                            boxShadow: viewMode === "3D" 
+                                                ? "inset 0 -2px 8px rgba(0,0,0,0.2), 0 2px 12px rgba(0,0,0,0.15)" 
+                                                : "inset 0 -1px 4px rgba(0,0,0,0.1)",
+                                        }}
+                                    >
+                                        <div className="w-full h-full opacity-40 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.1)_1px,transparent_1px)] bg-[size:4px_4px]" />
+                                        <div className="absolute top-0 left-0 w-full h-1/3 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
+                                    </div>
+                                    {/* Canat orizontal în centru - îmbunătățit */}
+                                    <div 
+                                        className="absolute w-full h-1.5 lg:h-2 rounded-full transition-all duration-300"
+                                        style={{
+                                            top: '50%',
+                                            background: `linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6), rgba(0,0,0,0.3))`,
+                                            transform: viewMode === "3D" 
+                                                ? "translateY(-50%) translateZ(8px)" 
+                                                : "translateY(-50%) translateZ(0px)",
+                                            boxShadow: viewMode === "3D"
+                                                ? "0 4px 12px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.1)"
+                                                : "0 2px 6px rgba(0,0,0,0.2)",
+                                        }}
+                                    />
+                                </>
+                            )}
+
+                            {/* Type 3: 2 canate - din lateral spre centru */}
+                            {meshType === "type3" && (
+                                <>
+                                    {/* Partea stângă */}
+                                    <div
+                                        className="absolute left-0 h-full overflow-hidden border-r-[3px] lg:border-r-[5px] plisse-fabric transition-all duration-300"
+                                        style={{
+                                            width: `${openLevel / 2}%`, 
+                                            borderColor: colorMap[frameColor],
+                                            transform: viewMode === "3D" ? "translateZ(6px)" : "translateZ(0px)",
+                                            boxShadow: viewMode === "3D" 
+                                                ? "inset -2px 0 8px rgba(0,0,0,0.2), 2px 0 12px rgba(0,0,0,0.15)" 
+                                                : "inset -1px 0 4px rgba(0,0,0,0.1)",
+                                        }}
+                                    >
+                                        <div className="w-full h-full opacity-40 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.1)_1px,transparent_1px)] bg-[size:4px_4px]" />
+                                        <div className="absolute top-0 left-0 w-1/3 h-full bg-gradient-to-r from-white/10 to-transparent pointer-events-none" />
+                                    </div>
+                                    {/* Partea dreaptă */}
+                                    <div
+                                        className="absolute right-0 h-full overflow-hidden border-l-[3px] lg:border-l-[5px] plisse-fabric transition-all duration-300"
+                                        style={{
+                                            width: `${openLevel / 2}%`, 
+                                            borderColor: colorMap[frameColor],
+                                            transform: viewMode === "3D" ? "translateZ(6px)" : "translateZ(0px)",
+                                            boxShadow: viewMode === "3D" 
+                                                ? "inset 2px 0 8px rgba(0,0,0,0.2), -2px 0 12px rgba(0,0,0,0.15)" 
+                                                : "inset 1px 0 4px rgba(0,0,0,0.1)",
+                                        }}
+                                    >
+                                        <div className="w-full h-full opacity-40 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.1)_1px,transparent_1px)] bg-[size:4px_4px]" />
+                                        <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-white/10 to-transparent pointer-events-none" />
+                                    </div>
+                                    {/* Canat stânga - 1/4 din lățime - îmbunătățit */}
+                                    <div 
+                                        className="absolute h-full w-1.5 lg:w-2 rounded-full transition-all duration-300"
+                                        style={{
+                                            left: '25%',
+                                            background: `linear-gradient(to right, rgba(0,0,0,0.3), rgba(0,0,0,0.6), rgba(0,0,0,0.3))`,
+                                            transform: viewMode === "3D" 
+                                                ? "translateX(-50%) translateZ(8px)" 
+                                                : "translateX(-50%) translateZ(0px)",
+                                            boxShadow: viewMode === "3D"
+                                                ? "0 4px 12px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.1)"
+                                                : "0 2px 6px rgba(0,0,0,0.2)",
+                                        }}
+                                    />
+                                    {/* Canat dreapta - 3/4 din lățime - îmbunătățit */}
+                                    <div 
+                                        className="absolute h-full w-1.5 lg:w-2 rounded-full transition-all duration-300"
+                                        style={{
+                                            left: '75%',
+                                            background: `linear-gradient(to right, rgba(0,0,0,0.3), rgba(0,0,0,0.6), rgba(0,0,0,0.3))`,
+                                            transform: viewMode === "3D" 
+                                                ? "translateX(-50%) translateZ(8px)" 
+                                                : "translateX(-50%) translateZ(0px)",
+                                            boxShadow: viewMode === "3D"
+                                                ? "0 4px 12px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.1)"
+                                                : "0 2px 6px rgba(0,0,0,0.2)",
+                                        }}
+                                    />
+                                </>
+                            )}
                         </div>
                         {viewMode === "3D" && (
-                            <div className="absolute bottom-2 lg:bottom-4 text-[8px] lg:text-[9px] font-bold text-slate-400 bg-white/90 px-2 py-1 rounded pointer-events-none shadow-sm">
-                                {window.innerWidth < 1024 ? "Atinge modelul pt. a roti" : "Trage pentru rotire"}
+                            <div className="absolute bottom-3 lg:bottom-4 left-1/2 -translate-x-1/2 text-[9px] lg:text-[10px] font-bold text-slate-500 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full pointer-events-none shadow-lg border border-slate-200 flex items-center gap-2">
+                                <svg className="w-3 h-3 lg:w-3.5 lg:h-3.5 text-blue-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                                </svg>
+                                <span>{window.innerWidth < 1024 ? "Atinge și trage" : "Trage pentru rotire"}</span>
                             </div>
                         )}
                     </div>
 
                     <div className="mt-4 lg:mt-6 flex flex-col items-center">
+                        <label className="text-[9px] lg:text-[10px] font-bold text-slate-400 uppercase block mb-2 tracking-wider text-center">
+                            {meshType === "type1" && "Nivel deschidere verticală"}
+                            {meshType === "type2" && "Nivel deschidere orizontală"}
+                            {meshType === "type3" && "Nivel deschidere (2 canate)"}
+                        </label>
                         <input type="range" min="5" max="95" value={openLevel} onChange={(e) => setOpenLevel(Number(e.target.value))} className="w-full h-1.5 lg:h-2 bg-slate-300 rounded-lg appearance-none accent-blue-600 outline-none" />
                     </div>
                 </div>
@@ -307,9 +607,101 @@ export default function Configurator({ user }: ConfiguratorProps) {
                 {/* ZONA CONTROALE (Jos pe mobil, Stânga pe Desktop) */}
                 <div className="lg:col-span-7 p-5 sm:p-8 lg:p-12 bg-white order-last lg:order-first z-10">
                     <div className="space-y-8 lg:space-y-10">
+                        
+                        {/* PASUL 1: SELECTARE TIP PLASĂ */}
+                        <section>
+                            <h3 className="text-xs lg:text-sm font-black text-slate-900 uppercase tracking-tighter mb-4 lg:mb-6">1. Selectează Tipul de Plasă</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4">
+                                {/* Type 1 - Vertical 1 canat */}
+                                <button
+                                    onClick={() => setMeshType("type1")}
+                                    className={`p-4 lg:p-5 flex flex-col items-center gap-3 border-2 rounded-xl lg:rounded-2xl transition-all ${
+                                        meshType === "type1" 
+                                            ? "border-blue-600 bg-blue-50 shadow-lg" 
+                                            : "border-slate-200 bg-white hover:border-slate-300"
+                                    }`}
+                                >
+                                    <div className="w-full h-24 lg:h-28 bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden">
+                                        {/* Placeholder pentru Type1.jpeg */}
+                                        <div className="text-center">
+                                            <svg className="w-8 h-8 lg:w-10 lg:h-10 mx-auto text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                                            </svg>
+                                            <p className="text-[8px] text-slate-400 mt-1">Vertical</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className={`text-[10px] lg:text-[11px] font-bold uppercase tracking-wide ${
+                                            meshType === "type1" ? "text-blue-700" : "text-slate-700"
+                                        }`}>
+                                            Tip 1
+                                        </p>
+                                        <p className="text-[9px] lg:text-[10px] text-slate-500 mt-1">1 canat - Vertical</p>
+                                    </div>
+                                </button>
+
+                                {/* Type 2 - Orizontal 1 canat */}
+                                <button
+                                    onClick={() => setMeshType("type2")}
+                                    className={`p-4 lg:p-5 flex flex-col items-center gap-3 border-2 rounded-xl lg:rounded-2xl transition-all ${
+                                        meshType === "type2" 
+                                            ? "border-blue-600 bg-blue-50 shadow-lg" 
+                                            : "border-slate-200 bg-white hover:border-slate-300"
+                                    }`}
+                                >
+                                    <div className="w-full h-24 lg:h-28 bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden">
+                                        {/* Placeholder pentru Type2.jpeg */}
+                                        <div className="text-center">
+                                            <svg className="w-8 h-8 lg:w-10 lg:h-10 mx-auto text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12M8 12h12M8 17h12M3 7h.01M3 12h.01M3 17h.01" />
+                                            </svg>
+                                            <p className="text-[8px] text-slate-400 mt-1">Orizontal</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className={`text-[10px] lg:text-[11px] font-bold uppercase tracking-wide ${
+                                            meshType === "type2" ? "text-blue-700" : "text-slate-700"
+                                        }`}>
+                                            Tip 2
+                                        </p>
+                                        <p className="text-[9px] lg:text-[10px] text-slate-500 mt-1">1 canat - Orizontal</p>
+                                    </div>
+                                </button>
+
+                                {/* Type 3 - 2 canate */}
+                                <button
+                                    onClick={() => setMeshType("type3")}
+                                    className={`p-4 lg:p-5 flex flex-col items-center gap-3 border-2 rounded-xl lg:rounded-2xl transition-all ${
+                                        meshType === "type3" 
+                                            ? "border-blue-600 bg-blue-50 shadow-lg" 
+                                            : "border-slate-200 bg-white hover:border-slate-300"
+                                    }`}
+                                >
+                                    <div className="w-full h-24 lg:h-28 bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden">
+                                        {/* Placeholder pentru Type3.jpeg */}
+                                        <div className="text-center">
+                                            <svg className="w-8 h-8 lg:w-10 lg:h-10 mx-auto text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                                            </svg>
+                                            <p className="text-[8px] text-slate-400 mt-1">2 canate</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className={`text-[10px] lg:text-[11px] font-bold uppercase tracking-wide ${
+                                            meshType === "type3" ? "text-blue-700" : "text-slate-700"
+                                        }`}>
+                                            Tip 3
+                                        </p>
+                                        <p className="text-[9px] lg:text-[10px] text-slate-500 mt-1">2 canate</p>
+                                    </div>
+                                </button>
+                            </div>
+                        </section>
+
+                        {/* PASUL 2: CONFIGURARE COTE */}
                         <section>
                             <div className="flex justify-between items-center mb-4 lg:mb-6">
-                                <h3 className="text-xs lg:text-sm font-black text-slate-900 uppercase tracking-tighter">1. Configurare Cote</h3>
+                                <h3 className="text-xs lg:text-sm font-black text-slate-900 uppercase tracking-tighter">2. Configurare Cote</h3>
                                 <div className="flex bg-slate-100 p-1 rounded-xl">
                                     {(["mm", "cm", "m"] as const).map((u) => (
                                         <button key={u} onClick={() => setUnit(u)} className={`text-[10px] lg:text-[11px] font-bold uppercase px-3 lg:px-4 py-1.5 rounded-lg transition-all ${unit === u ? "bg-white shadow-md text-blue-600" : "text-slate-400"}`}>
@@ -332,7 +724,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
                         </section>
 
                         <section>
-                            <h3 className="text-xs lg:text-sm font-black text-slate-900 uppercase tracking-tighter mb-4 lg:mb-6">2. Selecție Finisaj</h3>
+                            <h3 className="text-xs lg:text-sm font-black text-slate-900 uppercase tracking-tighter mb-4 lg:mb-6">3. Selecție Finisaj</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4 mb-4">
                                 {Object.keys(colorMap).map((c) => (
                                     <button key={c} onClick={() => setFrameColor(c)} className={`p-3 lg:p-4 flex sm:flex-col items-center justify-start sm:justify-center gap-3 lg:gap-2 border-2 rounded-xl lg:rounded-2xl transition-all ${frameColor === c ? "border-blue-600 bg-blue-50 shadow-sm" : "border-slate-100 bg-white"}`}>
@@ -363,6 +755,9 @@ export default function Configurator({ user }: ConfiguratorProps) {
                     <span className="text-xl font-black text-slate-900 leading-none">
                         {calculatedPrice > 0 ? calculatedPrice.toFixed(2) : "0.00"} <span className="text-xs text-blue-600 font-bold">RON</span>
                     </span>
+                    <span className="text-[9px] text-slate-500 mt-0.5">
+                        ({basePriceEur > 0 ? basePriceEur.toFixed(2) : "0.00"} EUR × {exchangeRate.toFixed(2)})
+                    </span>
                 </div>
                 <button
                     onClick={handleAddToCart}
@@ -381,6 +776,9 @@ export default function Configurator({ user }: ConfiguratorProps) {
                         {calculatedPrice > 0 ? calculatedPrice.toFixed(2) : "0.00"}
                         <span className="text-lg ml-2 text-blue-600 font-bold">RON</span>
                     </span>
+                    <div className="text-sm text-slate-500 mt-2">
+                        {basePriceEur > 0 ? basePriceEur.toFixed(2) : "0.00"} EUR × {exchangeRate.toFixed(2)} curs
+                    </div>
                 </div>
                 <button
                     onClick={handleAddToCart}
@@ -390,6 +788,17 @@ export default function Configurator({ user }: ConfiguratorProps) {
                     {isSubmitting ? "Se procesează..." : !user ? "Autentificare pentru Coș" : "Adaugă produsul în Coș"}
                 </button>
             </div>
+
+            {/* LOGO CLICK HANDLER (5 clicks → admin) - Colț stânga sus, fix */}
+            <button 
+                onClick={handleLogoClick}
+                className="fixed top-4 left-4 z-40 p-2 rounded-lg hover:bg-slate-100/50 transition-all active:scale-95"
+                aria-label="Logo"
+            >
+                <div className="w-8 h-8 lg:w-10 lg:h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-md">
+                    <span className="text-white font-black text-sm lg:text-base">iP</span>
+                </div>
+            </button>
 
         </div>
     );
