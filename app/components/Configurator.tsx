@@ -31,6 +31,22 @@ export default function Configurator({ user }: ConfiguratorProps) {
     const [viewMode, setViewMode] = useState<"2D" | "3D">("3D");
     const [exchangeRate, setExchangeRate] = useState<number>(5.0); // EUR to RON
 
+    // Trage cursul live din Supabase la încărcarea configuratorului
+    useEffect(() => {
+        const fetchLiveRate = async () => {
+            const { data } = await supabase
+                .from("app_settings")
+                .select("value")
+                .eq("key", "exchange_rate_eur_ron")
+                .single();
+            
+            if (data?.value) {
+                setExchangeRate(Number(data.value));
+            }
+        };
+        fetchLiveRate();
+    }, []);
+
     // Stări Interactivitate 3D
     const [rotation, setRotation] = useState({ x: 15, y: -25 });
     const isDragging = useRef(false);
@@ -156,7 +172,6 @@ export default function Configurator({ user }: ConfiguratorProps) {
         return data.matrix[heightIndex]?.[widthIndex] || 46.97; // fallback la prețul minim
     }, []);
 
-    // Scale calculat responsiv (mai mic pe ecrane mici)
     const [scaleMultiplier, setScaleMultiplier] = useState(240);
     useEffect(() => {
         setScaleMultiplier(window.innerWidth < 1024 ? 180 : 240);
