@@ -5,7 +5,6 @@ import { supabase } from "@/lib/supabase/client";
 import Configurator from "./components/Configurator";
 
 export default function Home() {
-    // 1. Inițializăm starea DIRECT din localStorage pentru zero latență
     const [user, setUser] = useState<any>(() => {
         if (typeof window !== "undefined") {
             const localSession = localStorage.getItem("sb-xvmfszcrqrkxsiyyqjwf-auth-token");
@@ -25,21 +24,18 @@ export default function Home() {
     useEffect(() => {
         setIsHydrated(true);
 
-        // 2. Validăm "în culise" cu Supabase pentru a ne asigura că tokenul nu a expirat
         supabase.auth.getSession().then(({ data: { session } }) => {
-            // Actualizăm starea doar dacă e o diferență, pentru a evita re-randări inutile
             if (session?.user?.id !== user?.id) {
                 setUser(session?.user || null);
             }
         });
 
-        // 3. Ascultăm orice schimbare viitoare (ex: dă logout din alt tab)
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setUser(session?.user || null);
         });
 
         return () => subscription.unsubscribe();
-    }, [user?.id]); // Am adăugat user?.id în dependențe
+    }, [user?.id]);
 
     if (!isHydrated) return null;
 
@@ -51,6 +47,7 @@ export default function Home() {
                     <h1 className="text-5xl md:text-7xl font-black text-slate-900 tracking-tight mb-8">
                         Plase iPlisse <br/>
                     </h1>
+
                     <p className="text-xl md:text-2xl text-slate-700 max-w-2xl mx-auto leading-relaxed font-medium">
                         <span className="text-blue-600 font-bold">Direct la tine acasă:</span>   Măsori singur, instalezi în <span className="text-blue-600 font-bold">5 minute</span> și economisești <span className="text-blue-600 font-bold">inteligent</span>!
                     </p>
@@ -191,16 +188,11 @@ export default function Home() {
 
                             {/* Column 3 - CTA */}
                             <div className="flex flex-col items-start md:items-end justify-center gap-3">
-                                <div className="flex flex-wrap gap-2">
-                        <span className="inline-flex items-center gap-1 bg-yellow-500/20 text-yellow-300 px-3 py-1 rounded-full text-xs font-medium border border-yellow-400/20">
-                            ⭐ 4.9/5
-                        </span>
-                                    <span className="inline-flex items-center gap-1 bg-blue-500/20 text-blue-300 px-3 py-1 rounded-full text-xs font-medium border border-blue-400/20">
-                            👥 500+
-                        </span>
-                                    <span className="inline-flex items-center gap-1 bg-green-500/20 text-green-300 px-3 py-1 rounded-full text-xs font-medium border border-green-400/20">
-                            🛡️ 5 ani
-                        </span>
+                                <div className="inline-flex items-center gap-2.5 bg-emerald-500/5 px-5 py-2.5 rounded-full border border-emerald-400/15">
+                                    <span className="text-lg text-emerald-400">🛡️</span>
+                                    <span className="text-sm text-slate-300">
+                                      Garanție <span className="text-emerald-400 font-semibold">1 an</span>
+                                     </span>
                                 </div>
                                 <a href="#configurator" className="group px-8 py-3.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2 w-full md:w-auto justify-center">
                                     <span>Comandă Acum</span>
