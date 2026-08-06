@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 export default function Navbar() {
     const [user, setUser] = useState<any>(null);
@@ -53,16 +54,17 @@ export default function Navbar() {
         fetchCartCount(user.id);
 
         // Activăm ascultătorul (Realtime)
-        const channel = supabase.channel(`cart_updates_${user.id}`)
+        const channel = supabase
+            .channel(`cart_updates_${user.id}`)
             .on(
-                'postgres_changes',
+                'postgres_changes' as any,
                 {
-                    event: '*', // Ascultă INSERT, UPDATE, DELETE
+                    event: '*',
                     schema: 'public',
                     table: 'orders',
-                    filter: `user_id=eq.${user.id}`
+                    filter: `user_id=eq.${user.id}`,
                 },
-                () => {
+                (payload: RealtimePostgresChangesPayload<{ [key: string]: any }>) => {
                     fetchCartCount(user.id);
                 }
             )
