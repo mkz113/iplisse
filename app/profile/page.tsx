@@ -139,7 +139,7 @@ export default function ProfilePage() {
                                         </p>
                                         <p className="text-xs text-slate-500 flex justify-between">
                                             <span>ID:</span>
-                                            <span className="font-mono text-slate-400">{order.id.split('-')[0]}</span>
+                                            <span className="font-mono text-slate-400">#{String(order.id).padStart(6, '0')}</span>
                                         </p>
                                     </div>
 
