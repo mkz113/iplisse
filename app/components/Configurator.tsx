@@ -14,7 +14,6 @@ export default function Configurator({ user }: ConfiguratorProps) {
     const [hydrated, setHydrated] = useState(false);
     const [logoClickCount, setLogoClickCount] = useState(0);
     const logoClickTimeout = useRef<NodeJS.Timeout | null>(null);
-
     // Stări Pop-up-uri
     const [toast, setToast] = useState<{ visible: boolean; message: string; type: "success" | "error" }>({
         visible: false, message: "", type: "success"
@@ -34,14 +33,19 @@ export default function Configurator({ user }: ConfiguratorProps) {
     // Trage cursul live din Supabase la încărcarea configuratorului
     useEffect(() => {
         const fetchLiveRate = async () => {
-            const { data } = await supabase
+            const { data, error } = await supabase
                 .from("app_settings")
                 .select("value")
                 .eq("key", "exchange_rate_eur_ron")
-                .single();
-            
-            if (data?.value) {
-                setExchangeRate(Number(data.value));
+                .single<any>();
+
+            if (error) {
+                console.error("failed to fetch exchange rate:", error);
+                return;
+            }
+
+            if (data && (data as any).value != null) {
+                setExchangeRate(Number((data as any).value));
             }
         };
         fetchLiveRate();
@@ -60,16 +64,24 @@ export default function Configurator({ user }: ConfiguratorProps) {
 
     // Handler pentru logo clicks (5 clicks → admin)
     const handleLogoClick = () => {
-        if (logoClickTimeout.current) clearTimeout(logoClickTimeout.current);
-        
+        // Copy to a local variable so TS can narrow it
+        const timeout = logoClickTimeout.current;
+
+        if (timeout) {
+            clearTimeout(timeout);
+        }
+
         const newCount = logoClickCount + 1;
         setLogoClickCount(newCount);
-        
+
         if (newCount >= 5) {
             router.push("/admin");
             setLogoClickCount(0);
         } else {
-            logoClickTimeout.current = setTimeout(() => setLogoClickCount(0), 2000);
+            logoClickTimeout.current = setTimeout(
+                () => setLogoClickCount(0),
+                2000
+            );
         }
     };
 
