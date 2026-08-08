@@ -3,11 +3,16 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
-
 interface ConfiguratorProps {
     user: any;
 }
 
+const CONFIG_LIMITS = {
+    minWidthMm: 300,
+    maxWidthMm: 3000,
+    minHeightMm: 500,
+    maxHeightMm: 3000,
+};
 export default function Configurator({ user }: ConfiguratorProps) {
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -124,9 +129,18 @@ export default function Configurator({ user }: ConfiguratorProps) {
         return n;
     };
 
-    const wMm = useMemo(() => Math.round(convertToMm(rawWidth, unit)), [rawWidth, unit]);
-    const hMm = useMemo(() => Math.round(convertToMm(rawHeight, unit)), [rawHeight, unit]);
+    const wMm = useMemo(() => {
+        const mm = Math.round(convertToMm(rawWidth, unit));
+        return Math.min(CONFIG_LIMITS.maxWidthMm, Math.max(CONFIG_LIMITS.minWidthMm, mm));
+    }, [rawWidth, unit]);
 
+    const hMm = useMemo(() => {
+        const mm = Math.round(convertToMm(rawHeight, unit));
+        return Math.min(CONFIG_LIMITS.maxHeightMm, Math.max(CONFIG_LIMITS.minHeightMm, mm));
+    }, [rawHeight, unit]);
+    /* const wMm = useMemo(() => Math.round(convertToMm(rawWidth, unit)), [rawWidth, unit]);
+    const hMm = useMemo(() => Math.round(convertToMm(rawHeight, unit)), [rawHeight, unit]);
+*/
     // =========================================================
     // MATRICE PREȚURI EUR (din Excel)
     // =========================================================
