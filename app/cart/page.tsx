@@ -46,7 +46,9 @@ export default function CartPage() {
     const handleDelete = async (id: any) => {
         setProcessingId(id);
         const { error } = await supabase.from("orders").delete().eq("id", id);
-
+        if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("cart:changed", { detail: { delta: -1 } }));
+        }
         if (!error) {
             setOrders(prev => prev.filter(o => o.id !== id));
         } else {
@@ -110,19 +112,25 @@ export default function CartPage() {
                 return; // Oprim execuția dacă plata a picat / a fost anulată
             }
 
-            // 2. Plata aprobată -> Actualizăm Supabase
             const { data: { session } } = await supabase.auth.getSession();
-
+            const userId = session?.user?.id;
+            if (!userId) {
+                alert("Sesiune expirată. Te rugăm să te reautentifici.");
+                setIsPaying(false);
+                return;
+            }
             const { error } = await supabase
                 .from("orders")
                 .update({
                     status: 'processing',
-                    // payment_method: selectedMethod (Dacă adaugi coloana în viitor)
                 })
-                .eq("user_id", session?.user?.id)
+                .eq("user_id", userId)
                 .eq("status", "pending");
 
             if (!error) {
+                if (typeof window !== "undefined") {
+                    window.dispatchEvent(new CustomEvent("cart:changed", { detail: { delta: -pendingOrders.length } }));
+                }
                 await fetchOrders();
                 handleTabChange("history");
             } else {

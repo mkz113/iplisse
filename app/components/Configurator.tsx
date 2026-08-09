@@ -336,6 +336,10 @@ export default function Configurator({ user }: ConfiguratorProps) {
 
             if (error) throw error;
 
+            if (typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("cart:changed", { detail: { delta: 1 } }));
+            }
+
             localStorage.removeItem("iplisse_config");
             showToast("Produsul a fost adăugat cu succes în coș!", "success");
 

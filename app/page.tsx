@@ -7,7 +7,9 @@ import Configurator from "./components/Configurator";
 export default function Home() {
     const [user, setUser] = useState<any>(() => {
         if (typeof window !== "undefined") {
-            const localSession = localStorage.getItem("sb-xvmfszcrqrkxsiyyqjwf-auth-token");
+            const localSession = localStorage.getItem(
+                "sb-xvmfszcrqrkxsiyyqjwf-auth-token"
+            );
             if (localSession) {
                 try {
                     return JSON.parse(localSession).user;
@@ -21,6 +23,29 @@ export default function Home() {
 
     const [isHydrated, setIsHydrated] = useState(false);
 
+    // Helper to get dialog by id
+    const getDialog = (id: string) =>
+        typeof document !== "undefined"
+            ? (document.getElementById(id) as HTMLDialogElement | null)
+            : null;
+
+    // Modal handlers
+    const openMeasureModal = () => {
+        getDialog("measure-dialog")?.showModal();
+    };
+
+    const closeMeasureModal = () => {
+        getDialog("measure-dialog")?.close();
+    };
+
+    const openInstallModal = () => {
+        getDialog("install-dialog")?.showModal();
+    };
+
+    const closeInstallModal = () => {
+        getDialog("install-dialog")?.close();
+    };
+
     useEffect(() => {
         setIsHydrated(true);
 
@@ -30,7 +55,9 @@ export default function Home() {
             }
         });
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
             setUser(session?.user || null);
         });
 
@@ -45,32 +72,174 @@ export default function Home() {
             <section className="relative w-full pt-32 pb-20 px-6 flex flex-col items-center">
                 <div className="max-w-4xl text-center z-10">
                     <h1 className="text-5xl md:text-7xl font-black text-slate-900 tracking-tight mb-8">
-                        Plase iPlisse <br/>
+                        Plase iPlisse <br />
                     </h1>
 
                     <p className="text-xl md:text-2xl text-slate-700 max-w-2xl mx-auto leading-relaxed font-medium">
-                        <span className="text-blue-600 font-bold">Direct la tine acasă:</span>   Măsori singur, instalezi în <span className="text-blue-600 font-bold">5 minute</span> și economisești <span className="text-blue-600 font-bold">inteligent</span>!
+                        <span className="text-blue-600 font-bold">Direct la tine acasă:</span>{" "}
+                        Măsori singur, instalezi în{" "}
+                        <span className="text-blue-600 font-bold">5 minute</span> și
+                        economisești{" "}
+                        <span className="text-blue-600 font-bold">inteligent</span>!
                     </p>
+
+
+                    <div className="mt-8 flex flex-wrap gap-4 justify-center">
+                        <button
+                            onClick={openMeasureModal}
+                            className="px-5 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700"
+                        >
+                            Ghid video măsurare
+                        </button>
+                        <button
+                            onClick={openInstallModal}
+                            className="px-5 py-3 rounded-xl bg-slate-900 text-white font-semibold hover:bg-black"
+                        >
+                            Ghid video instalare
+                        </button>
+                    </div>
+
+
+
+
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl w-full mt-20">
                     {[
-                        { t: "Orizontal", d: "Uși de balcon & terase", p: "Operare facilă", c: "Prag necesar" },
-                        { t: "Vertical", d: "Ferestre standard", p: "Discreție maximă", c: "Limită înălțime" },
-                        { t: "XL Dublu", d: "Deschideri mari (6m+)", p: "Acoperire uriașă", c: "Preț Premium" }
+                        {
+                            t: "Orizontal",
+                            d: "Uși de balcon & terase",
+                            p: "Operare facilă",
+                            c: "Prag necesar",
+                        },
+                        {
+                            t: "Vertical",
+                            d: "Ferestre standard",
+                            p: "Discreție maximă",
+                            c: "Limită înălțime",
+                        },
+                        {
+                            t: "XL Dublu",
+                            d: "Deschideri mari (6m+)",
+                            p: "Acoperire uriașă",
+                            c: "Preț Premium",
+                        },
                     ].map((item, i) => (
-                        <div key={i} className="p-8 bg-white border border-slate-100 rounded-3xl shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all group">
-                            <span className="text-blue-600 font-black text-sm mb-4 block opacity-40 group-hover:opacity-100">0{i+1}</span>
-                            <h3 className="text-xl font-bold mb-2 text-slate-800">{item.t}</h3>
+                        <div
+                            key={i}
+                            className="p-8 bg-white border border-slate-100 rounded-3xl shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all group"
+                        >
+              <span className="text-blue-600 font-black text-sm mb-4 block opacity-40 group-hover:opacity-100">
+                0{i + 1}
+              </span>
+                            <h3 className="text-xl font-bold mb-2 text-slate-800">
+                                {item.t}
+                            </h3>
                             <p className="text-sm text-slate-400 mb-6">{item.d}</p>
                             <div className="pt-4 border-t border-slate-50 space-y-1">
-                                <p className="text-[10px] font-bold text-green-600 uppercase">✓ {item.p}</p>
-                                <p className="text-[10px] font-bold text-red-400 uppercase">× {item.c}</p>
+                                <p className="text-[10px] font-bold text-green-600 uppercase">
+                                    ✓ {item.p}
+                                </p>
+                                <p className="text-[10px] font-bold text-red-400 uppercase">
+                                    × {item.c}
+                                </p>
                             </div>
                         </div>
                     ))}
                 </div>
             </section>
+
+            {/* VIDEO MODALS */}
+            {/* Modal - Măsurare */}
+            <dialog
+                id="measure-dialog"
+                className="relative bg-white rounded-2xl overflow-hidden w-full max-w-4xl max-h-[80vh] shadow-2xl mx-auto my-auto"            >
+                <div className="relative bg-white rounded-2xl overflow-hidden w-full">
+                    <button
+                        onClick={closeMeasureModal}
+                        className="absolute top-3 right-3 z-20 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-all hover:scale-110"
+                    >
+                        <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                            />
+                        </svg>
+                    </button>
+                    <div className="aspect-video bg-slate-900 flex items-center justify-center p-4">
+                        <div className="text-center">
+                            <div className="text-7xl mb-4">📹</div>
+                            <h3 className="text-2xl font-bold text-white mb-2">
+                                Ghid de măsurare
+                            </h3>
+                            <p className="text-slate-400">
+                                Video instructiv pentru măsurători precise
+                            </p>
+                            <div className="mt-6 inline-block px-6 py-3 bg-blue-600 text-white rounded-xl font-medium">
+                                Video Player
+                            </div>
+                        </div>
+                    </div>
+                    <div className="p-4 bg-slate-50 border-t border-slate-100">
+                        <p className="text-sm text-slate-600 text-center">
+                            📏 Măsoară corect pentru o plasă perfectă
+                        </p>
+                    </div>
+                </div>
+            </dialog>
+
+            {/* Modal - Instalare */}
+            <dialog
+                id="install-dialog"
+                className="relative bg-white rounded-2xl overflow-hidden w-full max-w-4xl max-h-[80vh] shadow-2xl mx-auto my-auto"
+            >
+                <div className="relative bg-white rounded-2xl overflow-hidden w-full">
+                    <button
+                        onClick={closeInstallModal}
+                        className="absolute top-3 right-3 z-20 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-all hover:scale-110"
+                    >
+                        <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                            />
+                        </svg>
+                    </button>
+                    <div className="aspect-video bg-slate-900 flex items-center justify-center p-4">
+                        <div className="text-center">
+                            <div className="text-7xl mb-4">🔧</div>
+                            <h3 className="text-2xl font-bold text-white mb-2">
+                                Ghid de instalare
+                            </h3>
+                            <p className="text-slate-400">
+                                Instalează în doar 5 minute
+                            </p>
+                            <div className="mt-6 inline-block px-6 py-3 bg-blue-600 text-white rounded-xl font-medium">
+                                Video Player
+                            </div>
+                        </div>
+                    </div>
+                    <div className="p-4 bg-slate-50 border-t border-slate-100">
+                        <p className="text-sm text-slate-600 text-center">
+                            🔧 Instalare rapidă și simplă — fără meșteri
+                        </p>
+                    </div>
+                </div>
+            </dialog>
 
             <section className="py-24 bg-slate-900 text-white overflow-hidden relative">
                 {/* Background decorations */}
@@ -88,7 +257,7 @@ export default function Home() {
                         <h2 className="text-4xl md:text-5xl font-black leading-tight">
                             Calitate Premium <br/>
                             <span className="bg-gradient-to-r from-blue-400 to-blue-300 bg-clip-text text-transparent">
-                    în 3 Pași Simpli
+                            în 3 Pași Simpli
                 </span>
                         </h2>
                         <p className="text-slate-400 max-w-2xl mx-auto mt-4 text-lg leading-relaxed">
@@ -120,8 +289,8 @@ export default function Home() {
                             },
                             {
                                 step: "03",
-                                title: "Livrare în maxim 3 Zile",
-                                desc: "Comanzi online, livrăm la ușă în maximum 3 zile lucrătoare.",
+                                title: "Livrare în maxim 5 zile",
+                                desc: "Comanzi online, livrăm la ușă în maximum 5 zile lucrătoare.",
                                 icon: "🚚",
                                 color: "from-purple-500 to-purple-400",
                                 tag: "Livrare rapidă"
