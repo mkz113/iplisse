@@ -13,6 +13,14 @@ const CONFIG_LIMITS = {
     minHeightMm: 500,
     maxHeightMm: 3000,
 };
+
+const COLOR_REGISTRY: Record<string, { label: string; hex: string; priceMultiplier: number }> = {
+    "RAL9016": { label: "Alb (RAL 9016)", hex: "#ffffff", priceMultiplier: 1.0 },
+    "RAL7016": { label: "Antracit (RAL 7016)", hex: "#373e47", priceMultiplier: 1.15 },
+    "RAL8017": { label: "Maro / Stejar (RAL 8017)", hex: "#4a3028", priceMultiplier: 1.30 },
+};
+
+
 export default function Configurator({ user }: ConfiguratorProps) {
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -30,7 +38,10 @@ export default function Configurator({ user }: ConfiguratorProps) {
     const [unit, setUnit] = useState<"mm" | "cm" | "m">("mm");
     const [rawWidth, setRawWidth] = useState<string>("300");
     const [rawHeight, setRawHeight] = useState<string>("500");
-    const [frameColor, setFrameColor] = useState<string>("Antracit (RAL 7016)");
+    const [frameColorRal, setFrameColorRal] = useState<string>("RAL7016");
+    const selectedColor = useMemo(() => {
+        return COLOR_REGISTRY[frameColorRal] ?? COLOR_REGISTRY["RAL7016"];
+    }, [frameColorRal]);
     const [openLevel, setOpenLevel] = useState<number>(70);
     const [viewMode, setViewMode] = useState<"2D" | "3D">("3D");
     const [exchangeRate, setExchangeRate] = useState<number>(5.0); // EUR to RON
@@ -43,18 +54,17 @@ export default function Configurator({ user }: ConfiguratorProps) {
                 .select("value")
                 .eq("key", "exchange_rate_eur_ron")
                 .single<any>();
-
             if (error) {
                 console.error("failed to fetch exchange rate:", error);
                 return;
             }
-
             if (data && (data as any).value != null) {
                 setExchangeRate(Number((data as any).value));
             }
         };
         fetchLiveRate();
     }, []);
+
 
     // Stări Interactivitate 3D
     const [rotation, setRotation] = useState({ x: 15, y: -25 });
@@ -99,7 +109,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
                 setRawWidth(p.rawWidth ?? "300");
                 setRawHeight(p.rawHeight ?? "500");
                 setUnit(p.unit ?? "mm");
-                setFrameColor(p.frameColor ?? "Antracit (RAL 7016)");
+                setFrameColorRal(p.frameColorRal ?? "RAL7016");
                 setViewMode(p.viewMode ?? "3D");
                 setExchangeRate(p.exchangeRate ?? 5.0);
             }
@@ -111,10 +121,10 @@ export default function Configurator({ user }: ConfiguratorProps) {
 
     useEffect(() => {
         if (!hydrated) return;
-        localStorage.setItem("iplisse_config", JSON.stringify({ 
-            meshType, rawWidth, rawHeight, unit, frameColor, viewMode, exchangeRate 
+        localStorage.setItem("iplisse_config", JSON.stringify({
+            meshType, rawWidth, rawHeight, unit, frameColorRal, viewMode, exchangeRate
         }));
-    }, [meshType, rawWidth, rawHeight, unit, frameColor, viewMode, exchangeRate, hydrated]);
+    }, [meshType, rawWidth, rawHeight, unit, frameColorRal, viewMode, exchangeRate, hydrated]);
 
     const handleInputChange = (val: string, type: "w" | "h") => {
         const cleanVal = val.replace(/[^0-9]/g, "").replace(/^0+/, "") || "0";
@@ -141,7 +151,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
     }, [rawHMm]);
 
     const sizeError = useMemo(() => {
-        if (rawWidth === "" || rawHeight === "") return null; // don't warn on empty yet
+        if (rawWidth === "" || rawHeight === "") return null;
 
         if (rawWMm < CONFIG_LIMITS.minWidthMm || rawWMm > CONFIG_LIMITS.maxWidthMm) {
             return `Lățimea trebuie să fie între ${CONFIG_LIMITS.minWidthMm} și ${CONFIG_LIMITS.maxWidthMm} mm.`;
@@ -157,9 +167,8 @@ export default function Configurator({ user }: ConfiguratorProps) {
             showToast(sizeError, "error");
         }
     }, [sizeError]);
-    // =========================================================
+
     // MATRICE PREȚURI EUR (din Excel)
-    // =========================================================
     const pricingData = {
         plase_1_canat: {
             widthLimits: [500, 700, 900, 1100, 1300, 1500, 1700],
@@ -201,15 +210,15 @@ export default function Configurator({ user }: ConfiguratorProps) {
     // Funcție lookup preț din matrice
     const getPriceFromMatrix = useCallback((width: number, height: number, type: "type1" | "type2" | "type3"): number => {
         const data = (type === "type3") ? pricingData.plase_2_canate : pricingData.plase_1_canat;
-        
+
         // Găsește index pentru lățime
         let widthIndex = data.widthLimits.findIndex(limit => width <= limit);
         if (widthIndex === -1) widthIndex = data.widthLimits.length - 1;
-        
+
         // Găsește index pentru înălțime
         let heightIndex = data.heightLimits.findIndex(limit => height <= limit);
         if (heightIndex === -1) heightIndex = data.heightLimits.length - 1;
-        
+
         // Returnează prețul din matrice
         return data.matrix[heightIndex]?.[widthIndex] || 46.97; // fallback la prețul minim
     }, []);
@@ -233,8 +242,9 @@ export default function Configurator({ user }: ConfiguratorProps) {
     // Calculare preț în EUR din matrice
     const basePriceEur = useMemo(() => {
         if (wMm === 0 || hMm === 0) return 0;
-        return getPriceFromMatrix(wMm, hMm, meshType);
-    }, [wMm, hMm, meshType, getPriceFromMatrix]);
+        const matrixPrice = getPriceFromMatrix(wMm, hMm, meshType);
+        return matrixPrice * selectedColor.priceMultiplier;
+    }, [wMm, hMm, meshType, selectedColor, getPriceFromMatrix]);
 
     // Preț final în RON (bazat pe curs)
     const calculatedPrice = useMemo(() => {
@@ -315,7 +325,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
                 user_id: activeUserId,
                 width: wMm,
                 height: hMm,
-                frame_color: frameColor,
+                frame_color: selectedColor.label,
                 plisse_type: plisseType,
                 mesh_type: meshType,
                 base_price_eur: basePriceEur,
@@ -337,14 +347,9 @@ export default function Configurator({ user }: ConfiguratorProps) {
         }
     };
 
-    const colorMap: Record<string, string> = {
-        "Antracit (RAL 7016)": "#373e47",
-        "Alb (RAL 9016)": "#ffffff",
-        "Maro (RAL 8017)": "#4a3028",
-    };
 
     const frameStyle = useMemo(() => {
-        const hex = colorMap[frameColor] ?? "#373e47";
+        const hex = selectedColor.hex;
         return {
             backgroundColor: hex,
             borderColor: hex === "#ffffff" ? "#e2e8f0" : "rgba(0,0,0,0.4)",
@@ -352,7 +357,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
                 ? "-15px 25px 40px rgba(0,0,0,0.2), inset 0 0 20px rgba(0,0,0,0.5)"
                 : "0 10px 25px rgba(0,0,0,0.1), inset 0 0 10px rgba(0,0,0,0.1)",
         };
-    }, [frameColor, viewMode]);
+    }, [selectedColor, viewMode]);
 
     if (!hydrated) return <div className="min-h-[600px] bg-slate-50 animate-pulse rounded-3xl w-full"></div>;
 
@@ -362,10 +367,8 @@ export default function Configurator({ user }: ConfiguratorProps) {
             {/* STILURI SPECIALE PENTRU SLIDER PE MOBIL */}
             <style dangerouslySetInnerHTML={{
                 __html: `
-                    /* Dezactivăm scroll-ul nativ pe containerele 3D pe mobil */
                     .touch-manipulation-none { touch-action: none; }
                     
-                    /* Slider mai gros și ușor de prins pe telefon */
                     input[type=range]::-webkit-slider-thumb {
                         -webkit-appearance: none; appearance: none;
                         width: 24px; height: 24px;
@@ -382,7 +385,6 @@ export default function Configurator({ user }: ConfiguratorProps) {
                         }
                     }
                     
-                    /* Animații smooth pentru configurator */
                     @keyframes fadeInScale {
                         from { opacity: 0; transform: scale(0.95); }
                         to { opacity: 1; transform: scale(1); }
@@ -462,8 +464,8 @@ export default function Configurator({ user }: ConfiguratorProps) {
                     <div className="flex justify-between items-center mb-4 lg:mb-8">
                         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Simulare 3D</h3>
                         <div className="flex gap-2 bg-slate-100/80 p-1 rounded-xl backdrop-blur-sm">
-                            <button 
-                                onClick={() => setViewMode("2D")} 
+                            <button
+                                onClick={() => setViewMode("2D")}
                                 className={`text-[9px] font-bold px-3 py-2 rounded-lg border transition-all duration-200 flex items-center gap-1.5 ${
                                     viewMode === "2D" 
                                         ? "bg-slate-800 text-white border-slate-800 shadow-md" 
@@ -475,8 +477,8 @@ export default function Configurator({ user }: ConfiguratorProps) {
                                 </svg>
                                 2D
                             </button>
-                            <button 
-                                onClick={() => { setViewMode("3D"); setRotation({ x: 15, y: -25 }); }} 
+                            <button
+                                onClick={() => { setViewMode("3D"); setRotation({ x: 15, y: -25 }); }}
                                 className={`text-[9px] font-bold px-3 py-2 rounded-lg border transition-all duration-200 flex items-center gap-1.5 ${
                                     viewMode === "3D" 
                                         ? "bg-slate-800 text-white border-slate-800 shadow-md" 
@@ -508,11 +510,11 @@ export default function Configurator({ user }: ConfiguratorProps) {
                         <div
                             className="relative border-[10px] lg:border-[14px] pointer-events-none mesh-animate mesh-shadow-dynamic transition-all duration-300"
                             style={{
-                                ...frameStyle, 
-                                width: `${wMm * scale}px`, 
+                                ...frameStyle,
+                                width: `${wMm * scale}px`,
                                 height: `${hMm * scale}px`,
-                                transform: viewMode === "3D" 
-                                    ? `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)` 
+                                transform: viewMode === "3D"
+                                    ? `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`
                                     : "rotateX(0deg) rotateY(0deg)",
                                 transformStyle: "preserve-3d",
                                 transition: "transform 0.15s ease-out, box-shadow 0.3s ease",
@@ -524,11 +526,11 @@ export default function Configurator({ user }: ConfiguratorProps) {
                                     <div
                                         className="absolute left-0 h-full overflow-hidden border-r-[4px] lg:border-r-[6px] plisse-fabric transition-all duration-300"
                                         style={{
-                                            width: `${openLevel}%`, 
-                                            borderColor: colorMap[frameColor],
+                                            width: `${openLevel}%`,
+                                            borderColor: selectedColor.hex,
                                             transform: viewMode === "3D" ? "translateZ(6px)" : "translateZ(0px)",
-                                            boxShadow: viewMode === "3D" 
-                                                ? "inset -2px 0 8px rgba(0,0,0,0.2), 2px 0 12px rgba(0,0,0,0.15)" 
+                                            boxShadow: viewMode === "3D"
+                                                ? "inset -2px 0 8px rgba(0,0,0,0.2), 2px 0 12px rgba(0,0,0,0.15)"
                                                 : "inset -1px 0 4px rgba(0,0,0,0.1)",
                                         }}
                                     >
@@ -537,13 +539,13 @@ export default function Configurator({ user }: ConfiguratorProps) {
                                         <div className="absolute top-0 left-0 w-1/3 h-full bg-gradient-to-r from-white/10 to-transparent pointer-events-none" />
                                     </div>
                                     {/* Canat vertical în centru - îmbunătățit */}
-                                    <div 
+                                    <div
                                         className="absolute h-full w-1.5 lg:w-2 rounded-full transition-all duration-300"
                                         style={{
                                             left: '50%',
                                             background: `linear-gradient(to right, rgba(0,0,0,0.3), rgba(0,0,0,0.6), rgba(0,0,0,0.3))`,
-                                            transform: viewMode === "3D" 
-                                                ? "translateX(-50%) translateZ(8px)" 
+                                            transform: viewMode === "3D"
+                                                ? "translateX(-50%) translateZ(8px)"
                                                 : "translateX(-50%) translateZ(0px)",
                                             boxShadow: viewMode === "3D"
                                                 ? "0 4px 12px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.1)"
@@ -559,11 +561,11 @@ export default function Configurator({ user }: ConfiguratorProps) {
                                     <div
                                         className="absolute top-0 w-full overflow-hidden border-b-[4px] lg:border-b-[6px] plisse-fabric transition-all duration-300"
                                         style={{
-                                            height: `${openLevel}%`, 
-                                            borderColor: colorMap[frameColor],
+                                            height: `${openLevel}%`,
+                                            borderColor: selectedColor.hex,
                                             transform: viewMode === "3D" ? "translateZ(6px)" : "translateZ(0px)",
-                                            boxShadow: viewMode === "3D" 
-                                                ? "inset 0 -2px 8px rgba(0,0,0,0.2), 0 2px 12px rgba(0,0,0,0.15)" 
+                                            boxShadow: viewMode === "3D"
+                                                ? "inset 0 -2px 8px rgba(0,0,0,0.2), 0 2px 12px rgba(0,0,0,0.15)"
                                                 : "inset 0 -1px 4px rgba(0,0,0,0.1)",
                                         }}
                                     >
@@ -571,13 +573,13 @@ export default function Configurator({ user }: ConfiguratorProps) {
                                         <div className="absolute top-0 left-0 w-full h-1/3 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
                                     </div>
                                     {/* Canat orizontal în centru - îmbunătățit */}
-                                    <div 
+                                    <div
                                         className="absolute w-full h-1.5 lg:h-2 rounded-full transition-all duration-300"
                                         style={{
                                             top: '50%',
                                             background: `linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6), rgba(0,0,0,0.3))`,
-                                            transform: viewMode === "3D" 
-                                                ? "translateY(-50%) translateZ(8px)" 
+                                            transform: viewMode === "3D"
+                                                ? "translateY(-50%) translateZ(8px)"
                                                 : "translateY(-50%) translateZ(0px)",
                                             boxShadow: viewMode === "3D"
                                                 ? "0 4px 12px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.1)"
@@ -594,11 +596,11 @@ export default function Configurator({ user }: ConfiguratorProps) {
                                     <div
                                         className="absolute left-0 h-full overflow-hidden border-r-[3px] lg:border-r-[5px] plisse-fabric transition-all duration-300"
                                         style={{
-                                            width: `${openLevel / 2}%`, 
-                                            borderColor: colorMap[frameColor],
+                                            width: `${openLevel / 2}%`,
+                                            borderColor: selectedColor.hex,
                                             transform: viewMode === "3D" ? "translateZ(6px)" : "translateZ(0px)",
-                                            boxShadow: viewMode === "3D" 
-                                                ? "inset -2px 0 8px rgba(0,0,0,0.2), 2px 0 12px rgba(0,0,0,0.15)" 
+                                            boxShadow: viewMode === "3D"
+                                                ? "inset -2px 0 8px rgba(0,0,0,0.2), 2px 0 12px rgba(0,0,0,0.15)"
                                                 : "inset -1px 0 4px rgba(0,0,0,0.1)",
                                         }}
                                     >
@@ -609,11 +611,11 @@ export default function Configurator({ user }: ConfiguratorProps) {
                                     <div
                                         className="absolute right-0 h-full overflow-hidden border-l-[3px] lg:border-l-[5px] plisse-fabric transition-all duration-300"
                                         style={{
-                                            width: `${openLevel / 2}%`, 
-                                            borderColor: colorMap[frameColor],
+                                            width: `${openLevel / 2}%`,
+                                            borderColor: selectedColor.hex,
                                             transform: viewMode === "3D" ? "translateZ(6px)" : "translateZ(0px)",
-                                            boxShadow: viewMode === "3D" 
-                                                ? "inset 2px 0 8px rgba(0,0,0,0.2), -2px 0 12px rgba(0,0,0,0.15)" 
+                                            boxShadow: viewMode === "3D"
+                                                ? "inset 2px 0 8px rgba(0,0,0,0.2), -2px 0 12px rgba(0,0,0,0.15)"
                                                 : "inset 1px 0 4px rgba(0,0,0,0.1)",
                                         }}
                                     >
@@ -621,13 +623,13 @@ export default function Configurator({ user }: ConfiguratorProps) {
                                         <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-white/10 to-transparent pointer-events-none" />
                                     </div>
                                     {/* Canat stânga - 1/4 din lățime - îmbunătățit */}
-                                    <div 
+                                    <div
                                         className="absolute h-full w-1.5 lg:w-2 rounded-full transition-all duration-300"
                                         style={{
                                             left: '25%',
                                             background: `linear-gradient(to right, rgba(0,0,0,0.3), rgba(0,0,0,0.6), rgba(0,0,0,0.3))`,
-                                            transform: viewMode === "3D" 
-                                                ? "translateX(-50%) translateZ(8px)" 
+                                            transform: viewMode === "3D"
+                                                ? "translateX(-50%) translateZ(8px)"
                                                 : "translateX(-50%) translateZ(0px)",
                                             boxShadow: viewMode === "3D"
                                                 ? "0 4px 12px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.1)"
@@ -635,13 +637,13 @@ export default function Configurator({ user }: ConfiguratorProps) {
                                         }}
                                     />
                                     {/* Canat dreapta - 3/4 din lățime - îmbunătățit */}
-                                    <div 
+                                    <div
                                         className="absolute h-full w-1.5 lg:w-2 rounded-full transition-all duration-300"
                                         style={{
                                             left: '75%',
                                             background: `linear-gradient(to right, rgba(0,0,0,0.3), rgba(0,0,0,0.6), rgba(0,0,0,0.3))`,
-                                            transform: viewMode === "3D" 
-                                                ? "translateX(-50%) translateZ(8px)" 
+                                            transform: viewMode === "3D"
+                                                ? "translateX(-50%) translateZ(8px)"
                                                 : "translateX(-50%) translateZ(0px)",
                                             boxShadow: viewMode === "3D"
                                                 ? "0 4px 12px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.1)"
@@ -674,7 +676,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
                 {/* ZONA CONTROALE (Jos pe mobil, Stânga pe Desktop) */}
                 <div className="lg:col-span-7 p-5 sm:p-8 lg:p-12 bg-white order-last lg:order-first z-10">
                     <div className="space-y-8 lg:space-y-10">
-                        
+
                         {/* PASUL 1: SELECTARE TIP PLASĂ */}
                         <section>
                             <h3 className="text-xs lg:text-sm font-black text-slate-900 uppercase tracking-tighter mb-4 lg:mb-6">1. Selectează Tipul de Plasă</h3>
@@ -793,10 +795,10 @@ export default function Configurator({ user }: ConfiguratorProps) {
                         <section>
                             <h3 className="text-xs lg:text-sm font-black text-slate-900 uppercase tracking-tighter mb-4 lg:mb-6">3. Selecție Finisaj</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4 mb-4">
-                                {Object.keys(colorMap).map((c) => (
-                                    <button key={c} onClick={() => setFrameColor(c)} className={`p-3 lg:p-4 flex sm:flex-col items-center justify-start sm:justify-center gap-3 lg:gap-2 border-2 rounded-xl lg:rounded-2xl transition-all ${frameColor === c ? "border-blue-600 bg-blue-50 shadow-sm" : "border-slate-100 bg-white"}`}>
-                                        <span className="w-5 h-5 lg:w-6 lg:h-6 rounded-full border border-black/10 shadow-inner flex-shrink-0" style={{ backgroundColor: colorMap[c] }} />
-                                        <span className={`text-[10px] lg:text-[11px] font-bold ${frameColor === c ? "text-blue-700" : "text-slate-500"}`}>{c}</span>
+                                {Object.entries(COLOR_REGISTRY).map(([ralKey, config]) => (
+                                    <button key={ralKey} onClick={() => setFrameColorRal(ralKey)} className={`p-3 lg:p-4 flex sm:flex-col items-center justify-start sm:justify-center gap-3 lg:gap-2 border-2 rounded-xl lg:rounded-2xl transition-all ${frameColorRal === ralKey ? "border-blue-600 bg-blue-50 shadow-sm" : "border-slate-100 bg-white"}`}>
+                                        <span className="w-5 h-5 lg:w-6 lg:h-6 rounded-full border border-black/10 shadow-inner flex-shrink-0" style={{ backgroundColor: config.hex }} />
+                                        <span className={`text-[10px] lg:text-[11px] font-bold ${frameColorRal === ralKey ? "text-blue-700" : "text-slate-500"}`}>{ralKey}</span>
                                     </button>
                                 ))}
                             </div>
