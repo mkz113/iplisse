@@ -28,8 +28,8 @@ export default function Configurator({ user }: ConfiguratorProps) {
     // Stări Configurator
     const [meshType, setMeshType] = useState<"type1" | "type2" | "type3">("type1");
     const [unit, setUnit] = useState<"mm" | "cm" | "m">("mm");
-    const [rawWidth, setRawWidth] = useState<string>("1200");
-    const [rawHeight, setRawHeight] = useState<string>("1500");
+    const [rawWidth, setRawWidth] = useState<string>("300");
+    const [rawHeight, setRawHeight] = useState<string>("500");
     const [frameColor, setFrameColor] = useState<string>("Antracit (RAL 7016)");
     const [openLevel, setOpenLevel] = useState<number>(70);
     const [viewMode, setViewMode] = useState<"2D" | "3D">("3D");
@@ -95,19 +95,19 @@ export default function Configurator({ user }: ConfiguratorProps) {
             const saved = localStorage.getItem("iplisse_config");
             if (saved) {
                 const p = JSON.parse(saved);
-                setMeshType(p.meshType || "type1");
-                setRawWidth(p.rawWidth || "1200");
-                setRawHeight(p.rawHeight || "1500");
-                setUnit(p.unit || "mm");
-                setFrameColor(p.frameColor || "Antracit (RAL 7016)");
-                setViewMode(p.viewMode || "3D");
-                setExchangeRate(p.exchangeRate || 5.0);
+                setMeshType(p.meshType ?? "type1");
+                setRawWidth(p.rawWidth ?? "300");
+                setRawHeight(p.rawHeight ?? "500");
+                setUnit(p.unit ?? "mm");
+                setFrameColor(p.frameColor ?? "Antracit (RAL 7016)");
+                setViewMode(p.viewMode ?? "3D");
+                setExchangeRate(p.exchangeRate ?? 5.0);
             }
         } catch {
-        } finally {
-            setHydrated(true);
-        }
-    }, []);
+                } finally {
+                    setHydrated(true);
+                }
+            }, []);
 
     useEffect(() => {
         if (!hydrated) return;
@@ -129,18 +129,34 @@ export default function Configurator({ user }: ConfiguratorProps) {
         return n;
     };
 
+    const rawWMm = useMemo(() => Math.round(convertToMm(rawWidth, unit)), [rawWidth, unit]);
+    const rawHMm = useMemo(() => Math.round(convertToMm(rawHeight, unit)), [rawHeight, unit]);
+
     const wMm = useMemo(() => {
-        const mm = Math.round(convertToMm(rawWidth, unit));
-        return Math.min(CONFIG_LIMITS.maxWidthMm, Math.max(CONFIG_LIMITS.minWidthMm, mm));
-    }, [rawWidth, unit]);
+        return Math.min(CONFIG_LIMITS.maxWidthMm, Math.max(CONFIG_LIMITS.minWidthMm, rawWMm));
+    }, [rawWMm]);
 
     const hMm = useMemo(() => {
-        const mm = Math.round(convertToMm(rawHeight, unit));
-        return Math.min(CONFIG_LIMITS.maxHeightMm, Math.max(CONFIG_LIMITS.minHeightMm, mm));
-    }, [rawHeight, unit]);
-    /* const wMm = useMemo(() => Math.round(convertToMm(rawWidth, unit)), [rawWidth, unit]);
-    const hMm = useMemo(() => Math.round(convertToMm(rawHeight, unit)), [rawHeight, unit]);
-*/
+        return Math.min(CONFIG_LIMITS.maxHeightMm, Math.max(CONFIG_LIMITS.minHeightMm, rawHMm));
+    }, [rawHMm]);
+
+    const sizeError = useMemo(() => {
+        if (rawWidth === "" || rawHeight === "") return null; // don't warn on empty yet
+
+        if (rawWMm < CONFIG_LIMITS.minWidthMm || rawWMm > CONFIG_LIMITS.maxWidthMm) {
+            return `Lățimea trebuie să fie între ${CONFIG_LIMITS.minWidthMm} și ${CONFIG_LIMITS.maxWidthMm} mm.`;
+        }
+        if (rawHMm < CONFIG_LIMITS.minHeightMm || rawHMm > CONFIG_LIMITS.maxHeightMm) {
+            return `Înălțimea trebuie să fie între ${CONFIG_LIMITS.minHeightMm} și ${CONFIG_LIMITS.maxHeightMm} mm.`;
+        }
+        return null;
+    }, [rawWMm, rawHMm, rawWidth, rawHeight]);
+
+    useEffect(() => {
+        if (sizeError) {
+            showToast(sizeError, "error");
+        }
+    }, [sizeError]);
     // =========================================================
     // MATRICE PREȚURI EUR (din Excel)
     // =========================================================
@@ -278,6 +294,16 @@ export default function Configurator({ user }: ConfiguratorProps) {
             return;
         }
 
+        if (sizeError) {
+            showToast(sizeError, "error");
+            return;
+        }
+
+        if (rawWidth === "" || rawHeight === "") {
+            showToast("Introduceți dimensiunile plasei.", "error");
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -286,15 +312,15 @@ export default function Configurator({ user }: ConfiguratorProps) {
             if (!activeUserId) throw new Error("Sesiune expirată. Te rugăm să te reautentifici.");
 
             const { error } = await supabase.from("orders").insert([{
-                user_id: activeUserId, 
-                width: wMm, 
-                height: hMm, 
+                user_id: activeUserId,
+                width: wMm,
+                height: hMm,
                 frame_color: frameColor,
-                plisse_type: plisseType, 
+                plisse_type: plisseType,
                 mesh_type: meshType,
                 base_price_eur: basePriceEur,
                 exchange_rate: exchangeRate,
-                price: calculatedPrice, 
+                price: calculatedPrice,
                 status: 'pending'
             }]);
 
