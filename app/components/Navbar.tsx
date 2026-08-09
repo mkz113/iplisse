@@ -1,18 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, JSX } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 export default function Navbar() {
     const [user, setUser] = useState<any>(null);
     const [cartCount, setCartCount] = useState<number>(0);
-    const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true); // ✨ Previne flash-ul de UI
+    const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
     const router = useRouter();
 
-    // 1. Funcția izolată pentru citirea coșului
+    // 1. Preluarea numărului de produse din coș
     const fetchCartCount = useCallback(async (userId: string) => {
         const { count, error } = await supabase
             .from("orders")
@@ -25,7 +24,7 @@ export default function Navbar() {
         }
     }, []);
 
-    // 2. Gestionarea sesiunii de bază
+    // 2. Sesiunea de utilizator
     useEffect(() => {
         const initAuth = async () => {
             const { data: { session } } = await supabase.auth.getSession();
@@ -43,34 +42,24 @@ export default function Navbar() {
         return () => subscription.unsubscribe();
     }, []);
 
-    // 3. Gestionarea Canalului Realtime, legată STRICT de ID-ul utilizatorului activ
+    // 3. Ascultătorul local instant (Eveniment "cart:changed")
     useEffect(() => {
         if (!user?.id) {
             setCartCount(0);
             return;
         }
+
         fetchCartCount(user.id);
 
-        // Activăm ascultătorul (Realtime)
-        const channel = supabase
-            .channel(`cart_updates_${user.id}`)
-            .on(
-                'postgres_changes' as any,
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'orders',
-                    filter: `user_id=eq.${user.id}`,
-                },
-                (payload: RealtimePostgresChangesPayload<{ [key: string]: any }>) => {
-                    fetchCartCount(user.id);
-                }
-            )
-            .subscribe();
+        const handleLocalCartChange = (e: Event) => {
+            const { delta } = (e as CustomEvent<{ delta?: number }>).detail || {};
+            setCartCount(prev => Math.max(0, prev + (delta ?? 0)));
+        };
 
-        // Facem clean-up la delogare sau schimbare de cont
+        window.addEventListener("cart:changed", handleLocalCartChange);
+
         return () => {
-            supabase.removeChannel(channel);
+            window.removeEventListener("cart:changed", handleLocalCartChange);
         };
     }, [user?.id, fetchCartCount]);
 
@@ -81,10 +70,19 @@ export default function Navbar() {
         router.push("/");
     };
 
-    // Helper pentru inițiala numelui
     const getInitial = () => {
         const name = user?.user_metadata?.nickname || user?.email || "?";
         return name.charAt(0).toUpperCase();
+    };
+
+    // Funcție dedicată de randare a badge-ului (Rezolvă 100% eroarea JSX/TypeScript)
+    const renderCartBadge = (): JSX.Element => {
+        if (cartCount <= 0) return <></>;
+        return (
+            <span className="absolute top-0 right-0 -mt-1 -mr-1 bg-red-500 text-white text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-white animate-in zoom-in duration-300">
+                {cartCount}
+            </span>
+        );
     };
 
     return (
@@ -100,13 +98,11 @@ export default function Navbar() {
             {/* Meniu Utilizator */}
             <div id="user-menu" className="flex items-center gap-4">
                 {isAuthLoading ? (
-                    // Skeleton UI - Se afișează scurt cât timp verificăm sesiunea
                     <div className="flex gap-3 animate-pulse items-center">
                         <div className="w-20 h-8 bg-slate-200 rounded-lg"></div>
                         <div className="w-8 h-8 bg-slate-200 rounded-full"></div>
                     </div>
                 ) : !user ? (
-                    // UI Delogat
                     <>
                         <Link
                             href="/auth/login"
@@ -120,10 +116,9 @@ export default function Navbar() {
                         </Link>
                     </>
                 ) : (
-                    // UI Logat
                     <div className="flex items-center gap-3 sm:gap-5">
 
-                        {/* Buton Coș (Cart) cu Badge Dinamic */}
+                        {/* Coș cu badge dinamic */}
                         <Link
                             href="/cart"
                             className="text-slate-500 hover:text-blue-600 transition-all relative group p-2 rounded-full hover:bg-blue-50"
@@ -133,14 +128,10 @@ export default function Navbar() {
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
                             </svg>
 
-                            {cartCount > 0 ? (
-                                <span className="absolute top-0 right-0 -mt-1 -mr-1 bg-red-500 text-white text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-white animate-in zoom-in duration-300">
-                                    {cartCount}
-                                </span>
-                            ): null}
+                            {renderCartBadge()}
                         </Link>
 
-                        {/* Profil Utilizator Clickable */}
+                        {/* Profil */}
                         <Link
                             href="/profile"
                             className="text-xs font-bold text-slate-600 hidden sm:flex items-center gap-2 hover:text-blue-600 transition-colors bg-slate-50 hover:bg-blue-50 px-3 py-1.5 rounded-full border border-slate-200 hover:border-blue-200"
@@ -152,7 +143,7 @@ export default function Navbar() {
                             <span className="pr-2">{user?.user_metadata?.nickname || user.email?.split('@')[0]}</span>
                         </Link>
 
-                        {/* Buton Ieșire Minimal */}
+                        {/* Ieșire */}
                         <button
                             onClick={handleSignOut}
                             className="text-xs font-bold text-slate-400 hover:text-red-600 transition-colors cursor-pointer bg-slate-50 hover:bg-red-50 px-3 py-2 rounded-full border border-slate-100 hover:border-red-100"
