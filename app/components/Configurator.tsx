@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import { useLanguage } from "@/lib/i18n";
 interface ConfiguratorProps {
     user: any;
 }
@@ -22,6 +23,7 @@ const COLOR_REGISTRY: Record<string, { label: string; hex: string; priceMultipli
 
 
 export default function Configurator({ user }: ConfiguratorProps) {
+    const { t } = useLanguage();
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [hydrated, setHydrated] = useState(false);
@@ -154,13 +156,13 @@ export default function Configurator({ user }: ConfiguratorProps) {
         if (rawWidth === "" || rawHeight === "") return null;
 
         if (rawWMm < CONFIG_LIMITS.minWidthMm || rawWMm > CONFIG_LIMITS.maxWidthMm) {
-            return `Lățimea trebuie să fie între ${CONFIG_LIMITS.minWidthMm} și ${CONFIG_LIMITS.maxWidthMm} mm.`;
+            return t.widthError;
         }
         if (rawHMm < CONFIG_LIMITS.minHeightMm || rawHMm > CONFIG_LIMITS.maxHeightMm) {
-            return `Înălțimea trebuie să fie între ${CONFIG_LIMITS.minHeightMm} și ${CONFIG_LIMITS.maxHeightMm} mm.`;
+            return t.heightError;
         }
         return null;
-    }, [rawWMm, rawHMm, rawWidth, rawHeight]);
+    }, [rawWMm, rawHMm, rawWidth, rawHeight, t]);
 
     useEffect(() => {
         if (sizeError) {
@@ -310,7 +312,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
         }
 
         if (rawWidth === "" || rawHeight === "") {
-            showToast("Introduceți dimensiunile plasei.", "error");
+            showToast(t.enterDimensionsError, "error");
             return;
         }
 
@@ -341,7 +343,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
             }
 
             localStorage.removeItem("iplisse_config");
-            showToast("Produsul a fost adăugat cu succes în coș!", "success");
+            showToast(t.cartAddSuccess, "success");
 
             setTimeout(() => router.push("/cart"), 1500);
         } catch (err: any) {
@@ -466,7 +468,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
                 {/* ZONA VISUALIZER (Sus pe mobil, Dreapta pe Desktop) */}
                 <div className="order-first lg:order-last lg:col-span-5 bg-slate-100 p-5 sm:p-8 lg:p-12 flex flex-col justify-between border-b lg:border-b-0 lg:border-l border-slate-200 relative z-20">
                     <div className="flex justify-between items-center mb-4 lg:mb-8">
-                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Simulare 3D</h3>
+                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t.sim3d}</h3>
                         <div className="flex gap-2 bg-slate-100/80 p-1 rounded-xl backdrop-blur-sm">
                             <button
                                 onClick={() => setViewMode("2D")}
@@ -662,16 +664,16 @@ export default function Configurator({ user }: ConfiguratorProps) {
                                 <svg className="w-3 h-3 lg:w-3.5 lg:h-3.5 text-blue-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
                                 </svg>
-                                <span>{window.innerWidth < 1024 ? "Atinge și trage" : "Trage pentru rotire"}</span>
+                                <span>{window.innerWidth < 1024 ? t.tapAndDrag : t.dragToRotate}</span>
                             </div>
                         )}
                     </div>
 
                     <div className="mt-4 lg:mt-6 flex flex-col items-center">
                         <label className="text-[9px] lg:text-[10px] font-bold text-slate-400 uppercase block mb-2 tracking-wider text-center">
-                            {meshType === "type1" && "Nivel deschidere verticală"}
-                            {meshType === "type2" && "Nivel deschidere orizontală"}
-                            {meshType === "type3" && "Nivel deschidere (2 canate)"}
+                            {meshType === "type1" && t.vertOpenLevel}
+                            {meshType === "type2" && t.horizOpenLevel}
+                            {meshType === "type3" && t.doubleOpenLevel}
                         </label>
                         <input type="range" min="5" max="95" value={openLevel} onChange={(e) => setOpenLevel(Number(e.target.value))} className="w-full h-1.5 lg:h-2 bg-slate-300 rounded-lg appearance-none accent-blue-600 outline-none" />
                     </div>
@@ -683,7 +685,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
 
                         {/* PASUL 1: SELECTARE TIP PLASĂ */}
                         <section>
-                            <h3 className="text-xs lg:text-sm font-black text-slate-900 uppercase tracking-tighter mb-4 lg:mb-6">1. Selectează Tipul de Plasă</h3>
+                            <h3 className="text-xs lg:text-sm font-black text-slate-900 uppercase tracking-tighter mb-4 lg:mb-6">{t.step1Mesh}</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4">
                                 {/* Type 1 - Vertical 1 canat */}
                                 <button
@@ -707,9 +709,9 @@ export default function Configurator({ user }: ConfiguratorProps) {
                                         <p className={`text-[10px] lg:text-[11px] font-bold uppercase tracking-wide ${
                                             meshType === "type1" ? "text-blue-700" : "text-slate-700"
                                         }`}>
-                                            Tip 1
+                                            {t.type1Label}
                                         </p>
-                                        <p className="text-[9px] lg:text-[10px] text-slate-500 mt-1">1 canat - Vertical</p>
+                                        <p className="text-[9px] lg:text-[10px] text-slate-500 mt-1">{t.type1Desc}</p>
                                     </div>
                                 </button>
 
@@ -735,9 +737,9 @@ export default function Configurator({ user }: ConfiguratorProps) {
                                         <p className={`text-[10px] lg:text-[11px] font-bold uppercase tracking-wide ${
                                             meshType === "type2" ? "text-blue-700" : "text-slate-700"
                                         }`}>
-                                            Tip 2
+                                            {t.type2Label}
                                         </p>
-                                        <p className="text-[9px] lg:text-[10px] text-slate-500 mt-1">1 canat - Orizontal</p>
+                                        <p className="text-[9px] lg:text-[10px] text-slate-500 mt-1">{t.type2Desc}</p>
                                     </div>
                                 </button>
 
@@ -763,9 +765,9 @@ export default function Configurator({ user }: ConfiguratorProps) {
                                         <p className={`text-[10px] lg:text-[11px] font-bold uppercase tracking-wide ${
                                             meshType === "type3" ? "text-blue-700" : "text-slate-700"
                                         }`}>
-                                            Tip 3
+                                            {t.type3Label}
                                         </p>
-                                        <p className="text-[9px] lg:text-[10px] text-slate-500 mt-1">2 canate</p>
+                                        <p className="text-[9px] lg:text-[10px] text-slate-500 mt-1">{t.type3Desc}</p>
                                     </div>
                                 </button>
                             </div>
@@ -774,7 +776,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
                         {/* PASUL 2: CONFIGURARE COTE */}
                         <section>
                             <div className="flex justify-between items-center mb-4 lg:mb-6">
-                                <h3 className="text-xs lg:text-sm font-black text-slate-900 uppercase tracking-tighter">2. Configurare Cote</h3>
+                                <h3 className="text-xs lg:text-sm font-black text-slate-900 uppercase tracking-tighter">{t.step2Dimensions}</h3>
                                 <div className="flex bg-slate-100 p-1 rounded-xl">
                                     {(["mm", "cm", "m"] as const).map((u) => (
                                         <button key={u} onClick={() => setUnit(u)} className={`text-[10px] lg:text-[11px] font-bold uppercase px-3 lg:px-4 py-1.5 rounded-lg transition-all ${unit === u ? "bg-white shadow-md text-blue-600" : "text-slate-400"}`}>
@@ -786,7 +788,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
                             <div className="grid grid-cols-2 gap-4 lg:gap-6">
                                 {(["w", "h"] as const).map((type) => (
                                     <div key={type}>
-                                        <label className="text-[9px] lg:text-[10px] font-bold text-slate-400 uppercase ml-1 mb-2 block tracking-widest">{type === "w" ? "Lățime Gol" : "Înălțime Gol"}</label>
+                                        <label className="text-[9px] lg:text-[10px] font-bold text-slate-400 uppercase ml-1 mb-2 block tracking-widest">{type === "w" ? t.widthLabel : t.heightLabel}</label>
                                         <div className="relative">
                                             <input type="text" inputMode="numeric" value={type === "w" ? rawWidth : rawHeight} onChange={(e) => handleInputChange(e.target.value, type)} className="w-full border-2 border-slate-100 rounded-xl lg:rounded-2xl p-3 lg:p-4 focus:border-blue-600 bg-slate-50/50 outline-none font-mono text-base lg:text-lg transition-all" />
                                             <span className="absolute bottom-3.5 lg:bottom-4 right-4 lg:right-5 text-xs lg:text-sm font-bold text-slate-300">{unit}</span>
@@ -797,7 +799,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
                         </section>
 
                         <section>
-                            <h3 className="text-xs lg:text-sm font-black text-slate-900 uppercase tracking-tighter mb-4 lg:mb-6">3. Selecție Finisaj</h3>
+                            <h3 className="text-xs lg:text-sm font-black text-slate-900 uppercase tracking-tighter mb-4 lg:mb-6">{t.step3Finish}</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4 mb-4">
                                 {Object.entries(COLOR_REGISTRY).map(([ralKey, config]) => (
                                     <button key={ralKey} onClick={() => setFrameColorRal(ralKey)} className={`p-3 lg:p-4 flex sm:flex-col items-center justify-start sm:justify-center gap-3 lg:gap-2 border-2 rounded-xl lg:rounded-2xl transition-all ${frameColorRal === ralKey ? "border-blue-600 bg-blue-50 shadow-sm" : "border-slate-100 bg-white"}`}>
@@ -811,8 +813,8 @@ export default function Configurator({ user }: ConfiguratorProps) {
                                     <svg className="w-4 h-4 lg:w-5 lg:h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>
                                 </div>
                                 <div className="text-left">
-                                    <p className="text-[10px] lg:text-[11px] font-black text-slate-800 uppercase tracking-widest">Culoare Custom / Atipic?</p>
-                                    <p className="text-[10px] lg:text-xs text-slate-500 mt-0.5">Apasă pt. ofertă personalizată.</p>
+                                    <p className="text-[10px] lg:text-[11px] font-black text-slate-800 uppercase tracking-widest">{t.customModalTitle}</p>
+                                    <p className="text-[10px] lg:text-xs text-slate-500 mt-0.5">{t.customColorSubtitle}</p>
                                 </div>
                             </button>
                         </section>
@@ -824,7 +826,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
             {/* BARA FIXĂ DE CHECKOUT (Lipită jos pe mobil, ascunsă în design-ul normal pe desktop) */}
             <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 p-4 z-50 lg:hidden shadow-[0_-10px_30px_rgba(0,0,0,0.15)] flex justify-between items-center">
                 <div className="flex flex-col">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Total:</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{t.totalLabel}</span>
                     <span className="text-xl font-black text-slate-900 leading-none">
                         {calculatedPrice > 0 ? calculatedPrice.toFixed(2) : "0.00"} <span className="text-xs text-blue-600 font-bold">RON</span>
                     </span>
@@ -837,20 +839,20 @@ export default function Configurator({ user }: ConfiguratorProps) {
                     disabled={isSubmitting || calculatedPrice === 0}
                     className="bg-blue-600 text-white px-6 py-3.5 rounded-xl font-black uppercase tracking-wider text-[10px] shadow-lg shadow-blue-500/30 disabled:opacity-50"
                 >
-                    {isSubmitting ? "Se adaugă..." : !user ? "Login & Adaugă" : "Adaugă în Coș"}
+                    {isSubmitting ? "Se adaugă..." : !user ? t.loginAndAdd : t.addToCart}
                 </button>
             </div>
 
             {/* Butonul de Desktop pentru Checkout (Apare doar pe ecrane mari) */}
             <div className="hidden lg:flex w-full bg-slate-100 border border-slate-200 shadow-md rounded-2xl mt-6 p-6 justify-between items-center">
                 <div>
-                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-1">Preț Final Calculat (TVA inclus)</span>
+                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-1">{t.finalPriceLabel}</span>
                     <span className="text-4xl font-black text-slate-900 tracking-tighter">
                         {calculatedPrice > 0 ? calculatedPrice.toFixed(2) : "0.00"}
                         <span className="text-lg ml-2 text-blue-600 font-bold">RON</span>
                     </span>
                     <div className="text-sm text-slate-500 mt-2">
-                        {basePriceEur > 0 ? basePriceEur.toFixed(2) : "0.00"} EUR × {exchangeRate.toFixed(2)} curs
+                        {basePriceEur > 0 ? basePriceEur.toFixed(2) : "0.00"} EUR × {exchangeRate.toFixed(2)} {t.curs}
                     </div>
                 </div>
                 <button
@@ -858,7 +860,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
                     disabled={isSubmitting || calculatedPrice === 0}
                     className="bg-blue-600 text-white px-10 py-5 rounded-2xl font-black uppercase tracking-[0.15em] text-xs transition-all shadow-xl hover:bg-blue-700 active:scale-95 disabled:opacity-50"
                 >
-                    {isSubmitting ? "Se procesează..." : !user ? "Autentificare pentru Coș" : "Adaugă produsul în Coș"}
+                    {isSubmitting ? t.processing : !user ? t.loginToAddToCart : t.addToCart}
                 </button>
             </div>
 

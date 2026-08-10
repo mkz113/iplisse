@@ -107,7 +107,57 @@ export const translations = {
 
         // Section Configurator
         configuratorTitle: "Configurator Inteligent",
-        configuratorDesc: "Alege dimensiunile și finisajele pentru a vedea prețul instant."
+        configuratorDesc: "Alege dimensiunile și finisajele pentru a vedea prețul instant.",
+        // Configurator
+        sim3d: "Simulare 3D",
+        dragToRotate: "Trage pentru rotire",
+        tapAndDrag: "Atinge și trage",
+
+        // Deschidere
+        vertOpenLevel: "Nivel deschidere verticală",
+        horizOpenLevel: "Nivel deschidere orizontală",
+        doubleOpenLevel: "Nivel deschidere (2 canate)",
+
+        // Pasul 1: Tip Plasă
+        step1Mesh: "1. Selectează Tipul de Plasă",
+        type1Label: "Tip 1",
+        type1Desc: "1 canat - Vertical",
+        type2Label: "Tip 2",
+        type2Desc: "1 canat - Orizontal",
+        type3Label: "Tip 3",
+        type3Desc: "2 canate",
+
+        // Pasul 2: Cote
+        step2Dimensions: "2. Configurare Cote",
+        widthLabel: "Lățime Gol",
+        heightLabel: "Înălțime Gol",
+
+        // Pasul 3: Finisaj
+        step3Finish: "3. Selecție Finisaj",
+        customColorTitle: "Culoare Custom / Atipic?",
+        customColorSubtitle: "Apasă pt. ofertă personalizată.",
+        customModalTitle: "Culoare Custom / Atipic?",
+        customModalDesc: "Dorești o nuanță specială RAL sau imitație lemn? Contactează-ne direct.",
+        discussWhatsapp: "Discută pe WhatsApp",
+        sendEmail: "Trimite un Email",
+
+        // Erori și Toaste
+        widthError: "Lățimea trebuie să fie între 300 și 3000 mm.",
+        heightError: "Înălțimea trebuie să fie între 500 și 3000 mm.",
+        enterDimensionsError: "Introduceți dimensiunile plasei.",
+        cartAddSuccess: "Produsul a fost adăugat cu succes în coș!",
+        connectionError: "Eroare de conexiune la adăugarea în coș.",
+
+        // Checkout Bar
+        totalLabel: "Total:",
+        finalPriceLabel: "Preț Final Calculat (TVA inclus)",
+        adding: "Se adaugă...",
+        processing: "Se procesează...",
+        loginAndAdd: "Login & Adaugă",
+        addToCart: "Adaugă în Coș",
+        loginToAddToCart: "Autentificare pentru Coș",
+        addProductToCart: "Adaugă produsul în Coș",
+        curs: "Curs",
 
 
 
@@ -222,6 +272,56 @@ export const translations = {
         configuratorTitle: "Умный Конфигуратор",
         configuratorDesc: "Выберите размеры и отделку, чтобы мгновенно увидеть цену.",
 
+        // Configurator
+        sim3d: "3D Симуляция",
+        dragToRotate: "Тяните для вращения",
+        tapAndDrag: "Коснитесь и тяните",
+
+        // Deschidere
+        vertOpenLevel: "Уровень вертикального открытия",
+        horizOpenLevel: "Уровень горизонтального открытия",
+        doubleOpenLevel: "Уровень открытия (2 створки)",
+
+        // Pasul 1: Tip Plasă
+        step1Mesh: "1. Выберите Тип Сетки",
+        type1Label: "Тип 1",
+        type1Desc: "1 створка - Вертикальная",
+        type2Label: "Тип 2",
+        type2Desc: "1 створка - Горизонтальная",
+        type3Label: "Tip 3",
+        type3Desc: "2 створки",
+
+        // Pasul 2: Cote
+        step2Dimensions: "2. Настройка Размеров",
+        widthLabel: "Ширина Проема",
+        heightLabel: "Высота Проема",
+
+        // Pasul 3: Finisaj
+        step3Finish: "3. Выбор Отделки",
+        customColorTitle: "Кастомный Цвет / Нестандарт?",
+        customColorSubtitle: "Нажмите для персонального предложения.",
+        customModalTitle: "Кастомный Цвет / Нестандарт?",
+        customModalDesc: "Хотите особый оттенок RAL или имитацию дерева? Свяжитесь с нами напрямую.",
+        discussWhatsapp: "Обсудить в WhatsApp",
+        sendEmail: "Отправить Email",
+
+        // Erori și Toaste
+        widthError: "Ширина должна быть от 300 до 3000 мм.",
+        heightError: "Высота должна быть от 500 до 3000 мм.",
+        enterDimensionsError: "Введите размеры сетки.",
+        cartAddSuccess: "Товар успешно добавлен в корзину!",
+        connectionError: "Ошибка подключения при добавлении в корзину.",
+
+        // Checkout Bar
+        totalLabel: "Итого:",
+        finalPriceLabel: "Итоговая Цена (с НДС)",
+        adding: "Добавление...",
+        processing: "Обработка...",
+        loginAndAdd: "Войти и Добавить",
+        addToCart: "Добавить в Корзину",
+        loginToAddToCart: "Войти для Корзины",
+        addProductToCart: "Добавить товар в Корзину",
+        curs:"Курс",
 
     }
 };
