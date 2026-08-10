@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useEffect, useState, useCallback, JSX } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-
+import { useLanguage } from "@/lib/i18n";
 export default function Navbar() {
+    const { t } = useLanguage();
     const [user, setUser] = useState<any>(null);
     const [cartCount, setCartCount] = useState<number>(0);
     const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
@@ -129,12 +130,12 @@ export default function Navbar() {
                         <Link
                             href="/auth/login"
                             className="text-sm font-semibold text-slate-600 transition-colors hover:text-sky-600">
-                            Autentificare
+                            {t.login}
                         </Link>
                         <Link
                             href="/auth/register"
                             className="text-[13px] font-bold bg-sky-500 text-white px-4 py-2 rounded-lg hover:bg-sky-600 transition-all shadow-md shadow-sky-200">
-                            Cont Nou
+                            {t.createAccount}
                         </Link>
                     </>
                 ) : (
@@ -156,7 +157,7 @@ export default function Navbar() {
                         <Link
                             href="/profile"
                             className="text-xs font-bold text-slate-600 hidden sm:flex items-center gap-2 hover:text-blue-600 transition-colors bg-slate-50 hover:bg-blue-50 px-3 py-1.5 rounded-full border border-slate-200 hover:border-blue-200"
-                            title="Vezi Profilul și Istoricul"
+                            title={t.viewProfile}
                         >
                             <div className="w-6 h-6 bg-gradient-to-tr from-blue-500 to-sky-400 rounded-full flex items-center justify-center text-white text-[11px] shadow-sm">
                                 {getInitial()}
@@ -168,7 +169,7 @@ export default function Navbar() {
                         <button
                             onClick={handleSignOut}
                             className="text-xs font-bold text-slate-600 hover:text-red-600 transition-colors cursor-pointer bg-slate-50 hover:bg-red-50 px-3 py-2 rounded-full border border-slate-200 hover:border-red-100"                        >
-                            Ieșire
+                            {t.delete === "Șterge" ? "Ieșire" : "Выйти"}
                         </button>
                     </div>
                 )}

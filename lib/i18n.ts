@@ -1,3 +1,5 @@
+"use client";
+
 export type Language = "RO" | "RU";
 
 export const translations = {
@@ -158,7 +160,9 @@ export const translations = {
         loginToAddToCart: "Autentificare pentru Coș",
         addProductToCart: "Adaugă produsul în Coș",
         curs: "Curs",
-
+        // Footer & Profile
+        allRightsReserved: "Toate drepturile rezervate.",
+        viewProfile: "Vezi Profilul și Istoricul",
 
 
 
@@ -170,7 +174,7 @@ export const translations = {
         myCart: "Моя корзина",
         orderHistory: "История заказов",
         emptyCart: "Ваша корзина пока пуста.",
-        configurePlisse: "Сконфигурировать Плиссе",
+        configurePlisse: "Конфигурировать Плиссе",
         dimensions: "Размеры",
         finish: "Отделка",
         delete: "Удалить",
@@ -322,6 +326,9 @@ export const translations = {
         loginToAddToCart: "Войти для Корзины",
         addProductToCart: "Добавить товар в Корзину",
         curs:"Курс",
+        // Footer & Profile
+        allRightsReserved: "Все права защищены.",
+        viewProfile: "Профиль и история",
 
     }
 };

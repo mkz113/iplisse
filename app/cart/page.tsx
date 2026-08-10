@@ -170,8 +170,8 @@ export default function CartPage() {
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
 
-                        <h3 className="text-xl font-black text-slate-900 mb-1">Alege metoda de plată</h3>
-                        <p className="text-sm text-slate-500 mb-8">Total de achitat: <strong className="text-slate-800">{total.toFixed(2)} RON</strong></p>
+                        <h3 className="text-xl font-black text-slate-900 mb-1">{t.choosePayment}</h3>
+                        <p className="text-sm text-slate-500 mb-8">{t.totalToPay} <strong className="text-slate-800">{total.toFixed(2)} RON</strong></p>
 
                         <div className="space-y-3">
                             {/* Apple Pay */}
@@ -200,7 +200,7 @@ export default function CartPage() {
                             {/* Divider */}
                             <div className="flex items-center gap-3 py-2">
                                 <div className="h-px bg-slate-100 flex-1"></div>
-                                <span className="text-xs font-bold text-slate-300 uppercase tracking-widest">sau</span>
+                                <span className="text-xs font-bold text-slate-300 uppercase tracking-widest">{t.or}</span>
                                 <div className="h-px bg-slate-100 flex-1"></div>
                             </div>
 
@@ -224,8 +224,7 @@ export default function CartPage() {
 
                         <p className="text-center text-[10px] font-semibold text-slate-400 mt-6 flex items-center justify-center gap-1 uppercase tracking-widest">
                             <svg className="w-3 h-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                            Tranzacție Securizată 256-bit
-                        </p>
+                            {t.securedTransaction}</p>
                     </div>
                 </div>
             )}
@@ -234,7 +233,7 @@ export default function CartPage() {
             <div className="max-w-4xl mx-auto">
                 {/* HEAD & TAB-URI */}
                 <div className="flex flex-col items-center mb-10">
-                    <h1 className="text-3xl font-black text-slate-900 mb-6 tracking-tight">Panou Comenzi</h1>
+                    <h1 className="text-3xl font-black text-slate-900 mb-6 tracking-tight">{t.cartTitle}</h1>
 
                     <div className="flex bg-slate-200/50 p-1.5 rounded-xl border border-slate-200 shadow-inner">
                         <button
@@ -245,7 +244,7 @@ export default function CartPage() {
                                     : "text-slate-500 hover:text-slate-700"
                             }`}
                         >
-                            Coșul Meu ({cartOrders.length})
+                            {t.myCart} ({cartOrders.length})
                         </button>
                         <button
                             onClick={() => handleTabChange("history")}
@@ -255,12 +254,10 @@ export default function CartPage() {
                                     : "text-slate-500 hover:text-slate-700"
                             }`}
                         >
-                            Istoric Comenzi ({historyOrders.length})
+                            {t.orderHistory} ({historyOrders.length})
                         </button>
                     </div>
                 </div>
-
-                {/* CONTAINER ANIMAT PENTRU TAB-URI */}
                 <div className={`transition-opacity duration-150 ${fadeState === "in" ? "opacity-100" : "opacity-0"}`}>
 
                     {/* TAB: COȘUL MEU */}
@@ -268,9 +265,9 @@ export default function CartPage() {
                         <div>
                             {cartOrders.length === 0 ? (
                                 <div className="bg-white p-16 rounded-3xl border border-slate-200 text-center shadow-sm">
-                                    <p className="text-slate-500 mb-6 font-medium text-lg">Coșul tău este momentan gol.</p>
+                                    <p className="text-slate-500 mb-6 font-medium text-lg">{t.emptyCart}</p>
                                     <Link href="/#configurator" className="bg-blue-600 text-white px-8 py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20">
-                                        Configurează un Plisse
+                                        {t.configurePlisse}
                                     </Link>
                                 </div>
                             ) : (
@@ -281,10 +278,10 @@ export default function CartPage() {
                                                 <div>
                                                     <h3 className="font-bold text-slate-800 text-lg">{order.plisse_type}</h3>
                                                     <p className="text-sm text-slate-500 mt-1">
-                                                        Dimensiuni: <span className="font-semibold text-slate-700">{order.width} x {order.height} mm</span>
+                                                        {t.dimensions} <span className="font-semibold text-slate-700">{order.width} x {order.height} mm</span>
                                                     </p>
                                                     <p className="text-sm text-slate-500">
-                                                        Finisaj: <span className="font-semibold text-slate-700">{order.frame_color}</span>
+                                                        {t.finish} <span className="font-semibold text-slate-700">{order.frame_color}</span>
                                                     </p>
                                                 </div>
                                                 <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-slate-100 pt-4 sm:pt-0">
@@ -294,7 +291,7 @@ export default function CartPage() {
                                                         disabled={processingId === order.id || isPaying}
                                                         className="text-red-500 hover:text-red-700 text-xs uppercase tracking-widest font-black disabled:opacity-50 transition-colors bg-red-50 hover:bg-red-100 px-4 py-2.5 rounded-xl"
                                                     >
-                                                        {processingId === order.id ? '...' : 'Șterge'}
+                                                        {processingId === order.id ? '...' : t.delete}
                                                     </button>
                                                 </div>
                                             </div>
@@ -302,9 +299,9 @@ export default function CartPage() {
                                     </div>
 
                                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit sticky top-24">
-                                        <h3 className="font-black text-sm uppercase tracking-widest mb-4 border-b border-slate-100 pb-4 text-slate-400">Sumar Comandă</h3>
+                                        <h3 className="font-black text-sm uppercase tracking-widest mb-4 border-b border-slate-100 pb-4 text-slate-400">{t.orderSummary}</h3>
                                         <div className="flex justify-between items-end mb-8">
-                                            <span className="text-slate-500 font-medium">Total Platit:</span>
+                                            <span className="text-slate-500 font-medium">{t.totalPaid}</span>
                                             <span className="text-3xl font-black text-slate-900 leading-none">{total.toFixed(2)} <span className="text-lg text-blue-600">RON</span></span>
                                         </div>
 
@@ -312,18 +309,16 @@ export default function CartPage() {
                                         <button
                                             onClick={() => setShowPaymentModal(true)}
                                             disabled={isPaying}
-                                            className="relative w-full bg-blue-600 text-white py-4 rounded-xl font-bold uppercase tracking-widest text-xs overflow-hidden group shadow-lg shadow-blue-500/30 disabled:opacity-70 disabled:cursor-not-allowed transition-all active:scale-95"
-                                        >
-                                            {/* Efect Shine */}
+                                            className="relative w-full bg-blue-600 text-white py-4 rounded-xl font-bold uppercase tracking-widest text-xs overflow-hidden group shadow-lg shadow-blue-500/30 disabled:opacity-70 disabled:cursor-not-allowed transition-all active:scale-95">
                                             <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out" />
 
                                             <span className="relative flex items-center justify-center gap-2">
                                                 {isPaying ? (
-                                                    "Așteptăm confirmarea băncii..."
+                                                    t.waitingBank
                                                 ) : (
                                                     <>
                                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
-                                                        Plătește Securizat
+                                                        {t.paySecured}
                                                     </>
                                                 )}
                                             </span>
@@ -331,7 +326,7 @@ export default function CartPage() {
 
                                         <div className="mt-4 flex items-center justify-center gap-2 text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
                                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                                            Procesatori parteneri
+                                            {t.partnerProcessors}
                                         </div>
                                     </div>
                                 </div>
@@ -339,12 +334,12 @@ export default function CartPage() {
                         </div>
                     )}
 
-                    {/* TAB: ISTORIC COMENZI */}
+                    {/* TAB: ISTORIC COMENZI*/}
                     {activeTab === "history" && (
                         <div>
                             {historyOrders.length === 0 ? (
                                 <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center shadow-sm">
-                                    <p className="text-slate-500 font-medium">Nu ai nicio comandă în istoric încă.</p>
+                                    <p className="text-slate-500 font-medium">{t.emptyHistory}</p>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
@@ -357,7 +352,7 @@ export default function CartPage() {
                                                 <div>
                                                     <h3 className="font-bold text-slate-800">{order.plisse_type}</h3>
                                                     <p className="text-xs text-slate-400 font-medium mt-0.5">
-                                                        Adăugat pe: {new Date(order.created_at).toLocaleDateString("ro-RO")}
+                                                        {t.addedOn} {new Date(order.created_at).toLocaleDateString("ro-RO")}
                                                     </p>
                                                 </div>
                                             </div>
@@ -371,7 +366,7 @@ export default function CartPage() {
                                                         order.status === 'completed' ? 'bg-green-100 text-green-700' :
                                                             'bg-slate-100 text-slate-600'
                                                 }`}>
-                                                    {order.status === 'processing' ? 'În Procesare' : order.status}
+                                                    {order.status === 'processing' ? t.inProcessing : order.status}
                                                 </span>
                                             </div>
                                         </div>
