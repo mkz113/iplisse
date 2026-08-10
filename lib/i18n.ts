@@ -178,6 +178,23 @@ export const translations = {
         goToCart: "Mergi la Coșul Meu",
         inWork: "În Lucru",
         totalPaidProfile: "Total Achitat",
+        // Admin
+        adminCheckingAccess: "Se verifică accesul...",
+        adminPanelTitle: "Panou Control",
+        backToSite: "Înapoi la Site",
+        exchangeRateTitle: "Setare Curs Valutar",
+        exchangeRateLabel: "1 EUR = ? RON",
+        save: "Salvează",
+        exchangeRateSuccess: "Curs valutar actualizat cu succes!",
+        exchangeRateError: "Eroare la actualizarea cursului.",
+        exchangeRateNote: "Acest curs va fi folosit instant pe site pentru calculul prețului plasei în coș.",
+        reviewModerationTitle: "Aprobare Recenzii",
+        reviewModerationNote: "Modulul de moderare recenzii va fi implementat aici.",
+        ordersManagementTitle: "Management Comenzi Clients",
+        noOrdersAdmin: "Nu există nicio comandă în baza de date.",
+        customer: "Client",
+        details: "Detalii",
+        priceAndStatus: "Preț & Status",
 
 
 
@@ -359,6 +376,23 @@ export const translations = {
         goToCart: "Перейти в Мою Корзину",
         inWork: "В работе",
         totalPaidProfile: "Итого Оплачено",
+        // Admin
+        adminCheckingAccess: "Проверка доступа...",
+        adminPanelTitle: "Панель Управления",
+        backToSite: "Назад на Сайт",
+        exchangeRateTitle: "Установка Курса Валют",
+        exchangeRateLabel: "1 EUR = ? RON",
+        save: "Сохранить",
+        exchangeRateSuccess: "Курс валют успешно обновлен!",
+        exchangeRateError: "Ошибка при обновлении курса.",
+        exchangeRateNote: "Этот курс будет мгновенно использован на сайте для расчета цены в корзине.",
+        reviewModerationTitle: "Модерация Отзывов",
+        reviewModerationNote: "Модуль модерации отзывов будет реализован здесь.",
+        ordersManagementTitle: "Управление Заказами Клиентов",
+        noOrdersAdmin: "В базе данных нет заказов.",
+        customer: "Клиент",
+        details: "Детали",
+        priceAndStatus: "Цена и Статус",
 
     }
 };
