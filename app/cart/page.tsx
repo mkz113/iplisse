@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useLanguage } from "@/lib/i18n";
 
 type PaymentMethod = 'google_pay' | 'apple_pay' | 'card_stripe' | 'neopay';
 
 export default function CartPage() {
+    const { t } = useLanguage();
     const router = useRouter();
     const [orders, setOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);

@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
 import Configurator from "./components/Configurator";
-
+import { useLanguage } from "@/lib/i18n";
 export default function Home() {
+    const { t } = useLanguage();
     const [user, setUser] = useState<any>(() => {
         if (typeof window !== "undefined") {
             const localSession = localStorage.getItem(
@@ -72,15 +73,14 @@ export default function Home() {
             <section className="relative w-full pt-32 pb-20 px-6 flex flex-col items-center">
                 <div className="max-w-4xl text-center z-10">
                     <h1 className="text-5xl md:text-7xl font-black text-slate-900 tracking-tight mb-8">
-                        Plase iPlisse <br />
+                        {t.heroTitle} <br />
                     </h1>
 
                     <p className="text-xl md:text-2xl text-slate-700 max-w-2xl mx-auto leading-relaxed font-medium">
-                        <span className="text-blue-600 font-bold">Direct la tine acasă:</span>{" "}
-                        Măsori singur, instalezi în{" "}
-                        <span className="text-blue-600 font-bold">5 minute</span> și
-                        economisești{" "}
-                        <span className="text-blue-600 font-bold">inteligent</span>!
+                        <span className="text-blue-600 font-bold">{t.heroSubtitlePrefix}</span>{" "}
+                        {t.heroSubtitleMeas}{" "}
+                        <span className="text-blue-600 font-bold">{t.heroSubtitleTime}</span> {t.heroSubtitleAnd}{" "}
+                        <span className="text-blue-600 font-bold">{t.heroSubtitleSave}</span>!
                     </p>
 
 
@@ -89,13 +89,13 @@ export default function Home() {
                             onClick={openMeasureModal}
                             className="px-5 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700"
                         >
-                            Ghid video măsurare
+                            {t.videoMeasureBtn}
                         </button>
                         <button
                             onClick={openInstallModal}
                             className="px-5 py-3 rounded-xl bg-slate-900 text-white font-semibold hover:bg-black"
                         >
-                            Ghid video instalare
+                            {t.videoInstallBtn}
                         </button>
                     </div>
 
@@ -107,22 +107,22 @@ export default function Home() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl w-full mt-20">
                     {[
                         {
-                            t: "Orizontal",
-                            d: "Uși de balcon & terase",
-                            p: "Operare facilă",
-                            c: "Prag necesar",
+                            t: t.typeHorizontal,
+                            d: t.descHorizontal,
+                            p: t.proEasy,
+                            c: t.conThreshold,
                         },
                         {
-                            t: "Vertical",
-                            d: "Ferestre standard",
-                            p: "Discreție maximă",
-                            c: "Limită înălțime",
+                            t: t.typeVertical,
+                            d: t.descVertical,
+                            p: t.proDiscretion,
+                            c: t.conHeightLimit,
                         },
                         {
-                            t: "XL Dublu",
-                            d: "Deschideri mari (6m+)",
-                            p: "Acoperire uriașă",
-                            c: "Preț Premium",
+                            t: t.typeXL,
+                            d: t.descXL,
+                            p: t.proHugeCoverage,
+                            c: t.conPremiumPrice,
                         },
                     ].map((item, i) => (
                         <div
@@ -153,7 +153,7 @@ export default function Home() {
             {/* Modal - Măsurare */}
             <dialog
                 id="measure-dialog"
-                className="relative bg-white rounded-2xl overflow-hidden w-full max-w-4xl max-h-[80vh] shadow-2xl mx-auto my-auto"            >
+                className="relative bg-white rounded-2xl overflow-hidden w-full max-w-4xl max-h-[80vh] shadow-2xl mx-auto my-auto">
                 <div className="relative bg-white rounded-2xl overflow-hidden w-full">
                     <button
                         onClick={closeMeasureModal}
@@ -177,10 +177,10 @@ export default function Home() {
                         <div className="text-center">
                             <div className="text-7xl mb-4">📹</div>
                             <h3 className="text-2xl font-bold text-white mb-2">
-                                Ghid de măsurare
+                                {t.measureGuideTitle}
                             </h3>
                             <p className="text-slate-400">
-                                Video instructiv pentru măsurători precise
+                                {t.measureGuideDesc}
                             </p>
                             <div className="mt-6 inline-block px-6 py-3 bg-blue-600 text-white rounded-xl font-medium">
                                 Video Player
@@ -189,7 +189,7 @@ export default function Home() {
                     </div>
                     <div className="p-4 bg-slate-50 border-t border-slate-100">
                         <p className="text-sm text-slate-600 text-center">
-                            📏 Măsoară corect pentru o plasă perfectă
+                            {t.measureGuideFooter}
                         </p>
                     </div>
                 </div>
@@ -223,10 +223,10 @@ export default function Home() {
                         <div className="text-center">
                             <div className="text-7xl mb-4">🔧</div>
                             <h3 className="text-2xl font-bold text-white mb-2">
-                                Ghid de instalare
+                                {t.installGuideTitle}
                             </h3>
                             <p className="text-slate-400">
-                                Instalează în doar 5 minute
+                                {t.installGuideDesc}
                             </p>
                             <div className="mt-6 inline-block px-6 py-3 bg-blue-600 text-white rounded-xl font-medium">
                                 Video Player
@@ -235,7 +235,7 @@ export default function Home() {
                     </div>
                     <div className="p-4 bg-slate-50 border-t border-slate-100">
                         <p className="text-sm text-slate-600 text-center">
-                            🔧 Instalare rapidă și simplă — fără meșteri
+                            {t.installGuideFooter}
                         </p>
                     </div>
                 </div>
@@ -252,17 +252,16 @@ export default function Home() {
                     {/* Section Header */}
                     <div className="text-center mb-16">
                         <div className="inline-block bg-blue-500/20 text-blue-300 px-5 py-2 rounded-full text-sm font-bold mb-4 border border-blue-400/20">
-                            ✨ De ce să alegi plasele Plisse?
+                            {t.whyChooseBadge}
                         </div>
                         <h2 className="text-4xl md:text-5xl font-black leading-tight">
-                            Calitate Premium <br/>
+                            {t.qualityTitle} <br/>
                             <span className="bg-gradient-to-r from-blue-400 to-blue-300 bg-clip-text text-transparent">
-                            în 3 Pași Simpli
+                            {t.qualitySubtitle}
                 </span>
                         </h2>
                         <p className="text-slate-400 max-w-2xl mx-auto mt-4 text-lg leading-relaxed">
-                            Calitate superioara de aluminiu premium , plasa de fibra si sistem de fibra de nylon
-                            Plasele Plisse sunt moderne, elegant , ocupa spatiu minim si sunt extrem de fiabile , iar acum sistemul nostru inteligent de comanda le poti avea intr-un timp record                        </p>
+                            {t.qualityDesc}</p>
                     </div>
 
                     {/* 3 Steps Grid */}
@@ -273,27 +272,27 @@ export default function Home() {
                         {[
                             {
                                 step: "01",
-                                title: "Fără Meșteri",
-                                desc: "Instalezi singur în 5 minute. Economisești costurile de montaj.",
+                                title: t.step1Title,
+                                desc: t.step1Desc,
                                 icon: "🔧",
                                 color: "from-blue-500 to-blue-400",
-                                tag: "Instalare rapidă"
+                                tag: t.step1Tag
                             },
                             {
                                 step: "02",
-                                title: "Fără Costuri Ascunse",
-                                desc: "Plătești exact ce vezi în calculator. Preț transparent, fără surprize.",
+                                title: t.step2Title,
+                                desc: t.step2Desc,
                                 icon: "💎",
                                 color: "from-indigo-500 to-indigo-400",
-                                tag: "Preț transparent"
+                                tag: t.step2Tag
                             },
                             {
                                 step: "03",
-                                title: "Livrare în maxim 5 zile",
-                                desc: "Comanzi online, livrăm la ușă în maximum 5 zile lucrătoare.",
+                                title: t.step3Title,
+                                desc: t.step3Desc,
                                 icon: "🚚",
                                 color: "from-purple-500 to-purple-400",
-                                tag: "Livrare rapidă"
+                                tag: t.step3Tag
                             }
                         ].map((item, i) => (
                             <div key={i} className="relative group">
@@ -319,38 +318,38 @@ export default function Home() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             {/* Column 1 - Features */}
                             <div className="space-y-3">
-                                <h4 className="font-bold text-blue-300 text-sm uppercase tracking-wider">Caracteristici Premium</h4>
+                                <h4 className="font-bold text-blue-300 text-sm uppercase tracking-wider">{t.featHeader}</h4>
                                 <div className="space-y-2">
                                     <div className="flex items-center gap-2">
                                         <span className="text-blue-400">✓</span>
-                                        <span className="text-sm text-slate-300">Profil aluminiu premium</span>
+                                        <span className="text-sm text-slate-300">{t.feat1}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <span className="text-blue-400">✓</span>
-                                        <span className="text-sm text-slate-300">Plasă din fibră de sticlă</span>
+                                        <span className="text-sm text-slate-300">{t.feat2}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <span className="text-blue-400">✓</span>
-                                        <span className="text-sm text-slate-300">Sistem pe fire de nylon</span>
+                                        <span className="text-sm text-slate-300">{t.feat3}</span>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Column 2 - Benefits */}
                             <div className="space-y-3">
-                                <h4 className="font-bold text-blue-300 text-sm uppercase tracking-wider">Beneficii</h4>
+                                <h4 className="font-bold text-blue-300 text-sm uppercase tracking-wider">{t.benHeader}</h4>
                                 <div className="space-y-2">
                                     <div className="flex items-center gap-2">
                                         <span className="text-green-400">✓</span>
-                                        <span className="text-sm text-slate-300">Fără meșteri necesari</span>
+                                        <span className="text-sm text-slate-300">{t.ben1}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <span className="text-green-400">✓</span>
-                                        <span className="text-sm text-slate-300">Fără costuri ascunse</span>
+                                        <span className="text-sm text-slate-300">{t.ben2}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <span className="text-green-400">✓</span>
-                                        <span className="text-sm text-slate-300">Livrare în 3 zile</span>
+                                        <span className="text-sm text-slate-300">{t.ben3}</span>
                                     </div>
                                 </div>
                             </div>
@@ -360,16 +359,16 @@ export default function Home() {
                                 <div className="inline-flex items-center gap-2.5 bg-emerald-500/5 px-5 py-2.5 rounded-full border border-emerald-400/15">
                                     <span className="text-lg text-emerald-400">🛡️</span>
                                     <span className="text-sm text-slate-300">
-                                      Garanție <span className="text-emerald-400 font-semibold">1 an</span>
+                                      {t.warranty} <span className="text-emerald-400 font-semibold">{t.warrantyTime}</span>
                                      </span>
                                 </div>
                                 <a href="#configurator" className="group px-8 py-3.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2 w-full md:w-auto justify-center">
-                                    <span>Comandă Acum</span>
+                                    <span>{t.orderNow}</span>
                                     <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                                     </svg>
                                 </a>
-                                <span className="text-xs text-slate-400">Kit instalare gratuit inclus</span>
+                                <span className="text-xs text-slate-400">{t.freeKit}</span>
                             </div>
                         </div>
 
@@ -378,11 +377,11 @@ export default function Home() {
 
                         {/* Bottom Text */}
                         <p className="text-center text-sm text-slate-400 leading-relaxed">
-                            <span className="font-semibold text-blue-300">Sistem inteligent de comandă</span>
+                            <span className="font-semibold text-blue-300">{t.smartOrderSystem}</span>
                             <span className="mx-2">•</span>
-                            Le poți avea într-un <span className="font-semibold text-blue-400">timp record</span>
+                            <span className="font-semibold text-blue-400">{t.recordTime}</span>
                             <span className="mx-2">•</span>
-                            Calitate superioară garantată
+                            {t.guaranteedQuality}
                         </p>
                     </div>
                 </div>
@@ -391,8 +390,8 @@ export default function Home() {
             {/* CONFIGURATOR SECTION */}
             <section id="configurator" className="py-32 px-6 flex flex-col items-center">
                 <div className="mb-16 text-center">
-                    <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter mb-4">Configurator Inteligent</h2>
-                    <p className="text-slate-400">Alege dimensiunile și finisajele pentru a vedea prețul instant.</p>
+                    <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter mb-4">{t.configuratorTitle}</h2>
+                    <p className="text-slate-400">{t.configuratorDesc}</p>
                 </div>
                 <Configurator user={user} />
             </section>
