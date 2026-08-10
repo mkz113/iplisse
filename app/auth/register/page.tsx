@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import { supabase } from "../../../lib/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
+import { useLanguage } from "@/lib/i18n";
 export default function RegisterPage() {
+    const { t } = useLanguage();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [status, setStatus] = useState<{ type: 'error' | 'success' | '', message: string }>({ type: '', message: '' });
@@ -45,11 +46,9 @@ export default function RegisterPage() {
             <div className="absolute top-0 right-0 h-[30rem] w-[30rem] rounded-full bg-sky-200/30 blur-3xl"></div>
 
             <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/60 bg-white/70 p-8 shadow-xl shadow-sky-100/50 backdrop-blur-xl">
-                <h1 className="mb-2 text-center text-3xl font-extrabold text-slate-800">
-                    Creează cont
-                </h1>
+                <h1 className="mb-2 text-center text-3xl font-extrabold text-slate-800">{t.createAccount}</h1>
                 <p className="mb-8 text-center text-slate-500">
-                    Alătură-te ecosistemului <span className="font-semibold text-sky-500">iPlisse</span>
+                    {t.joinEcosystem} <span className="font-semibold text-sky-500">iPlisse</span>
                 </p>
 
                 {status.message && (
@@ -60,7 +59,7 @@ export default function RegisterPage() {
 
                 <form onSubmit={handleRegister} className="space-y-5">
                     <div>
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Email</label>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">{t.email}</label>
                         <input
                             type="email"
                             value={email}
@@ -71,7 +70,7 @@ export default function RegisterPage() {
                         />
                     </div>
                     <div>
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Parolă (minim 6 caractere)</label>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">{t.password}</label>
                         <input
                             type="password"
                             value={password}
@@ -83,12 +82,12 @@ export default function RegisterPage() {
                         />
                     </div>
                     <button type="submit" className="mt-2 w-full rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 p-3.5 font-semibold text-white shadow-md shadow-sky-500/20 transition-all hover:scale-[1.02] hover:shadow-sky-500/40 active:scale-[0.98]">
-                        Înregistrare
+                        {t.register}
                     </button>
                 </form>
 
                 <p className="mt-8 text-center text-sm text-slate-500">
-                    Ai deja cont? <Link href="/auth/login" className="font-semibold text-sky-600 transition-colors hover:text-sky-500 hover:underline">Autentifică-te aici</Link>
+                    {t.alreadyHaveAccount} <Link href="/auth/login" className="font-semibold text-sky-600 transition-colors hover:text-sky-500 hover:underline">{t.loginHere}</Link>
                 </p>
             </div>
         </div>
