@@ -241,7 +241,7 @@ export default function Home() {
                 </div>
             </dialog>
 
-            <section className="py-24 bg-slate-900 text-white overflow-hidden relative">
+            <section className="py-12 lg:py-16 bg-slate-900 text-white overflow-hidden relative">
                 {/* Background decorations */}
                 <div className="absolute inset-0">
                     <div className="absolute top-0 right-0 w-1/2 h-full bg-blue-600/10 rounded-full blur-3xl"></div>
@@ -387,11 +387,11 @@ export default function Home() {
                 </div>
             </section>
 
-            {/* CONFIGURATOR SECTION */}
-            <section id="configurator" className="py-32 px-6 flex flex-col items-center">
-                <div className="mb-16 text-center">
-                    <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter mb-4">{t.configuratorTitle}</h2>
-                    <p className="text-slate-400">{t.configuratorDesc}</p>
+            {/* CONFIGURATOR SECTION  */}
+            <section id="configurator" className="pt-8 pb-16 px-6 flex flex-col items-center">
+                <div className="mb-6 text-center">
+                    <h2 className="text-2xl lg:text-3xl font-black text-slate-900 uppercase tracking-tighter mb-2">{t.configuratorTitle}</h2>
+                    <p className="text-xs lg:text-sm text-slate-400">{t.configuratorDesc}</p>
                 </div>
                 <Configurator user={user} />
             </section>

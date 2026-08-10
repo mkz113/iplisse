@@ -46,25 +46,35 @@ export default function Configurator({ user }: ConfiguratorProps) {
     }, [frameColorRal]);
     const [openLevel, setOpenLevel] = useState<number>(70);
     const [viewMode, setViewMode] = useState<"2D" | "3D">("3D");
-    const [exchangeRate, setExchangeRate] = useState<number>(5.0); // EUR to RON
+    const [currency, setCurrency] = useState<"RON" | "EUR" | "MDL">("RON");
+    const [rates, setRates] = useState({
+        RON: 5.0,
+        MDL: 19.5,
+    });
 
-    // Trage cursul live din Supabase la încărcarea configuratorului
     useEffect(() => {
-        const fetchLiveRate = async () => {
+        const fetchLiveRates = async () => {
             const { data, error } = await supabase
                 .from("app_settings")
-                .select("value")
-                .eq("key", "exchange_rate_eur_ron")
-                .single<any>();
+                .select("key, value");
+
             if (error) {
-                console.error("failed to fetch exchange rate:", error);
+                console.error("failed to fetch exchange rates:", error);
                 return;
             }
-            if (data && (data as any).value != null) {
-                setExchangeRate(Number((data as any).value));
+
+            if (data) {
+                const items = data as unknown as { key: string; value: number }[];
+                const ronItem = items.find((item) => item.key === "exchange_rate_eur_ron");
+                const mdlItem = items.find((item) => item.key === "exchange_rate_eur_mdl");
+
+                setRates({
+                    RON: ronItem ? Number(ronItem.value) : 5.0,
+                    MDL: mdlItem ? Number(mdlItem.value) : 19.5,
+                });
             }
         };
-        fetchLiveRate();
+        fetchLiveRates();
     }, []);
 
 
@@ -113,7 +123,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
                 setUnit(p.unit ?? "mm");
                 setFrameColorRal(p.frameColorRal ?? "RAL7016");
                 setViewMode(p.viewMode ?? "3D");
-                setExchangeRate(p.exchangeRate ?? 5.0);
+                setCurrency(p.currency ?? "RON");
             }
         } catch {
                 } finally {
@@ -124,9 +134,9 @@ export default function Configurator({ user }: ConfiguratorProps) {
     useEffect(() => {
         if (!hydrated) return;
         localStorage.setItem("iplisse_config", JSON.stringify({
-            meshType, rawWidth, rawHeight, unit, frameColorRal, viewMode, exchangeRate
+            meshType, rawWidth, rawHeight, unit, frameColorRal, viewMode, currency
         }));
-    }, [meshType, rawWidth, rawHeight, unit, frameColorRal, viewMode, exchangeRate, hydrated]);
+    }, [meshType, rawWidth, rawHeight, unit, frameColorRal, viewMode, currency, hydrated]);
 
     const handleInputChange = (val: string, type: "w" | "h") => {
         const cleanVal = val.replace(/[^0-9]/g, "").replace(/^0+/, "") || "0";
@@ -225,10 +235,10 @@ export default function Configurator({ user }: ConfiguratorProps) {
         return data.matrix[heightIndex]?.[widthIndex] || 46.97; // fallback la prețul minim
     }, []);
 
-    const [scaleMultiplier, setScaleMultiplier] = useState(240);
+    const [scaleMultiplier, setScaleMultiplier] = useState(260);
     useEffect(() => {
-        setScaleMultiplier(window.innerWidth < 1024 ? 180 : 240);
-        const handleResize = () => setScaleMultiplier(window.innerWidth < 1024 ? 180 : 240);
+        setScaleMultiplier(window.innerWidth < 1024 ? 200 : 260);
+        const handleResize = () => setScaleMultiplier(window.innerWidth < 1024 ? 200 : 260);
         window.addEventListener("resize", handleResize);
         return () => window.removeEventListener("resize", handleResize);
     }, []);
@@ -248,10 +258,11 @@ export default function Configurator({ user }: ConfiguratorProps) {
         return matrixPrice * selectedColor.priceMultiplier;
     }, [wMm, hMm, meshType, selectedColor, getPriceFromMatrix]);
 
-    // Preț final în RON (bazat pe curs)
     const calculatedPrice = useMemo(() => {
-        return basePriceEur * exchangeRate;
-    }, [basePriceEur, exchangeRate]);
+        if (currency === "EUR") return basePriceEur;
+        if (currency === "MDL") return basePriceEur * rates.MDL;
+        return basePriceEur * rates.RON;
+    }, [basePriceEur, currency, rates]);
 
     // =========================================================
     // LOGICĂ DRAG & DROP OPTIMIZATĂ PENTRU MOBIL
@@ -331,7 +342,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
                 plisse_type: plisseType,
                 mesh_type: meshType,
                 base_price_eur: basePriceEur,
-                exchange_rate: exchangeRate,
+                exchange_rate: currency,
                 price: calculatedPrice,
                 status: 'pending'
             }]);
@@ -368,7 +379,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
     if (!hydrated) return <div className="min-h-[600px] bg-slate-50 animate-pulse rounded-3xl w-full"></div>;
 
     return (
-        <div className="relative max-w-6xl mx-auto pb-32 lg:pb-0">
+        <div className="relative max-w-5xl mx-auto pb-24 lg:pb-0">
 
             {/* STILURI SPECIALE PENTRU SLIDER PE MOBIL */}
             <style dangerouslySetInnerHTML={{
@@ -681,8 +692,26 @@ export default function Configurator({ user }: ConfiguratorProps) {
 
                 {/* ZONA CONTROALE (Jos pe mobil, Stânga pe Desktop) */}
                 <div className="lg:col-span-7 p-5 sm:p-8 lg:p-12 bg-white order-last lg:order-first z-10">
-                    <div className="space-y-8 lg:space-y-10">
-
+                    <div className="space-y-4 lg:space-y-5">
+                        {/* SELECTOR VALUTĂ (Stânga sus) */}
+                        <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valută Afișată</span>
+                            <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
+                                {(["RON", "EUR", "MDL"] as const).map((curr) => (
+                                    <button
+                                        key={curr}
+                                        onClick={() => setCurrency(curr)}
+                                        className={`text-xs font-black px-3 py-1.5 rounded-lg transition-all ${
+                                            currency === curr
+                                                ? "bg-blue-600 text-white shadow-sm"
+                                                : "text-slate-500 hover:text-slate-800"
+                                        }`}
+                                    >
+                                        {curr}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                         {/* PASUL 1: SELECTARE TIP PLASĂ */}
                         <section>
                             <h3 className="text-xs lg:text-sm font-black text-slate-900 uppercase tracking-tighter mb-4 lg:mb-6">{t.step1Mesh}</h3>
@@ -696,7 +725,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
                                             : "border-slate-200 bg-white hover:border-slate-300"
                                     }`}
                                 >
-                                    <div className="w-full h-24 lg:h-28 bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden">
+                                    <div className="w-full h-18 lg:h-20 bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden">
                                         {/* Placeholder pentru Type1.jpeg */}
                                         <div className="text-center">
                                             <svg className="w-8 h-8 lg:w-10 lg:h-10 mx-auto text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -724,7 +753,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
                                             : "border-slate-200 bg-white hover:border-slate-300"
                                     }`}
                                 >
-                                    <div className="w-full h-24 lg:h-28 bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden">
+                                    <div className="w-full h-18 lg:h-20 bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden">
                                         {/* Placeholder pentru Type2.jpeg */}
                                         <div className="text-center">
                                             <svg className="w-8 h-8 lg:w-10 lg:h-10 mx-auto text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -752,7 +781,7 @@ export default function Configurator({ user }: ConfiguratorProps) {
                                             : "border-slate-200 bg-white hover:border-slate-300"
                                     }`}
                                 >
-                                    <div className="w-full h-24 lg:h-28 bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden">
+                                    <div className="w-full h-18 lg:h-20 bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden">
                                         {/* Placeholder pentru Type3.jpeg */}
                                         <div className="text-center">
                                             <svg className="w-8 h-8 lg:w-10 lg:h-10 mx-auto text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -823,15 +852,15 @@ export default function Configurator({ user }: ConfiguratorProps) {
 
             </div>
 
-            {/* BARA FIXĂ DE CHECKOUT (Lipită jos pe mobil, ascunsă în design-ul normal pe desktop) */}
+            {/* BARA FIXĂ DE CHECKOUT (Lipită jos pe mobil) */}
             <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 p-4 z-50 lg:hidden shadow-[0_-10px_30px_rgba(0,0,0,0.15)] flex justify-between items-center">
                 <div className="flex flex-col">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{t.totalLabel}</span>
                     <span className="text-xl font-black text-slate-900 leading-none">
-                        {calculatedPrice > 0 ? calculatedPrice.toFixed(2) : "0.00"} <span className="text-xs text-blue-600 font-bold">RON</span>
+                        {calculatedPrice > 0 ? calculatedPrice.toFixed(2) : "0.00"} <span className="text-xs text-blue-600 font-bold">{currency}</span>
                     </span>
                     <span className="text-[9px] text-slate-500 mt-0.5">
-                        ({basePriceEur > 0 ? basePriceEur.toFixed(2) : "0.00"} EUR × {exchangeRate.toFixed(2)})
+                        ({basePriceEur > 0 ? basePriceEur.toFixed(2) : "0.00"} EUR)
                     </span>
                 </div>
                 <button
@@ -843,22 +872,24 @@ export default function Configurator({ user }: ConfiguratorProps) {
                 </button>
             </div>
 
-            {/* Butonul de Desktop pentru Checkout (Apare doar pe ecrane mari) */}
-            <div className="hidden lg:flex w-full bg-slate-100 border border-slate-200 shadow-md rounded-2xl mt-6 p-6 justify-between items-center">
+            {/* CARD PREȚ DESKTOP ELEGANT & COMPACT */}
+            <div className="hidden lg:flex w-full bg-slate-100 border border-slate-200 shadow-sm rounded-2xl mt-2.5 px-6 py-3.5 justify-between items-center">
                 <div>
-                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-1">{t.finalPriceLabel}</span>
-                    <span className="text-4xl font-black text-slate-900 tracking-tighter">
-                        {calculatedPrice > 0 ? calculatedPrice.toFixed(2) : "0.00"}
-                        <span className="text-lg ml-2 text-blue-600 font-bold">RON</span>
-                    </span>
-                    <div className="text-sm text-slate-500 mt-2">
-                        {basePriceEur > 0 ? basePriceEur.toFixed(2) : "0.00"} EUR × {exchangeRate.toFixed(2)} {t.curs}
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">{t.finalPriceLabel}</span>
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-black text-slate-900 tracking-tight">
+                            {calculatedPrice > 0 ? calculatedPrice.toFixed(2) : "0.00"}
+                        </span>
+                        <span className="text-sm text-blue-600 font-bold">{currency}</span>
+                        <span className="text-xs text-slate-400 font-medium ml-2">
+                            ({basePriceEur > 0 ? basePriceEur.toFixed(2) : "0.00"} EUR {currency !== "EUR" && `× ${(currency === "MDL" ? rates.MDL : rates.RON).toFixed(2)}`})
+                        </span>
                     </div>
                 </div>
                 <button
                     onClick={handleAddToCart}
                     disabled={isSubmitting || calculatedPrice === 0}
-                    className="bg-blue-600 text-white px-10 py-5 rounded-2xl font-black uppercase tracking-[0.15em] text-xs transition-all shadow-xl hover:bg-blue-700 active:scale-95 disabled:opacity-50"
+                    className="bg-blue-600 text-white px-8 py-3.5 rounded-xl font-black uppercase tracking-wider text-xs transition-all shadow-md hover:bg-blue-700 active:scale-95 disabled:opacity-50"
                 >
                     {isSubmitting ? t.processing : !user ? t.loginToAddToCart : t.addToCart}
                 </button>
