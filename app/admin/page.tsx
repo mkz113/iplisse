@@ -11,8 +11,11 @@ export default function AdminPage() {
     const [loading, setLoading] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
 
-    // Stări Admin
-    const [exchangeRate, setExchangeRate] = useState<string>("5.0");
+    // Stări Admin pentru ambele valute (RON și MDL raportate la 1 EUR)
+    const [rates, setRates] = useState({
+        ron: "5.0",
+        mdl: "19.5"
+    });
     const [isSavingRate, setIsSavingRate] = useState(false);
     const [allOrders, setAllOrders] = useState<any[]>([]);
     const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
@@ -47,15 +50,66 @@ export default function AdminPage() {
         setLoading(false);
     };
 
-    // Aducem cursul actual din app_settings
     const fetchCurrentRate = async () => {
         const { data } = await supabase
             .from("app_settings")
-            .select("value")
-            .eq("key", "exchange_rate_eur_ron")
-            .single();
+            .select("key, value");
 
-        if (data) setExchangeRate(data.value.toString());
+        if (data) {
+            // Forțăm tipul explicit pe obiectele din array ca să nu mai existe erori de linter
+            const items = data as unknown as { key: string; value: number }[];
+
+            const ronVal = items.find(i => i.key === "exchange_rate_eur_ron")?.value;
+            const mdlVal = items.find(i => i.key === "exchange_rate_eur_mdl")?.value;
+
+            setRates({
+                ron: ronVal !== undefined ? ronVal.toString() : "5.0",
+                mdl: mdlVal !== undefined ? mdlVal.toString() : "19.5"
+            });
+        }
+    };
+
+    // 2. Salvarea manuală a cursurilor
+    const handleSaveRates = async () => {
+        setIsSavingRate(true);
+        const { error } = await supabase.from("app_settings").upsert([
+            { key: "exchange_rate_eur_ron", value: Number(rates.ron) },
+            { key: "exchange_rate_eur_mdl", value: Number(rates.mdl) }
+        ]);
+
+        if (!error) {
+            alert("Cursele valutare au fost salvate cu succes!");
+        } else {
+            alert("Eroare la salvarea cursurilor.");
+        }
+        setIsSavingRate(false);
+    };
+
+    // 3. Auto-Sincronizare Curs Live de la API
+    const handleSyncLiveRates = async () => {
+        try {
+            setIsSavingRate(true);
+            const res = await fetch("https://api.frankfurter.app/latest?from=EUR&to=RON,MDL");
+            const data = await res.json();
+
+            if (data?.rates) {
+                const newRon = data.rates.RON ? data.rates.RON.toFixed(2) : rates.ron;
+                const newMdl = data.rates.MDL ? data.rates.MDL.toFixed(2) : rates.mdl;
+
+                setRates({ ron: newRon, mdl: newMdl });
+
+                await supabase.from("app_settings").upsert([
+                    { key: "exchange_rate_eur_ron", value: Number(newRon) },
+                    { key: "exchange_rate_eur_mdl", value: Number(newMdl) }
+                ]);
+
+                alert(`Cursuri sincronizate live! RON: ${newRon}, MDL: ${newMdl}`);
+            }
+        } catch {
+            alert("Eroare la preluarea cursului live.");
+        } finally {
+            setIsSavingRate(false);
+        }
     };
 
     // Aducem toate comenzile clienților
@@ -68,22 +122,6 @@ export default function AdminPage() {
         if (!error && data) {
             setAllOrders(data);
         }
-    };
-
-    // Salvăm noul curs valutar
-    const handleSaveRate = async () => {
-        setIsSavingRate(true);
-        const { error } = await supabase
-            .from("app_settings")
-            .update({ value: Number(exchangeRate) })
-            .eq("key", "exchange_rate_eur_ron");
-
-        if (!error) {
-            alert(t.exchangeRateSuccess);
-        } else {
-            alert(t.exchangeRateError);
-        }
-        setIsSavingRate(false);
     };
 
     // Schimbăm statusul unei comenzi (ex: pending -> processing -> completed)
@@ -124,33 +162,54 @@ export default function AdminPage() {
                 {/* Grid 2 Coloane: Curs Valutar + Moderare Recenzii */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
 
-                    {/* WIDGET CURS VALUTAR */}
-                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-                        <div className="flex items-center gap-3 mb-6">
+                    {/* WIDGET CURS VALUTAR DUBLU (RON + MDL) */}
+                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+                        <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center text-green-600">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                             </div>
                             <h2 className="text-xl font-black text-slate-800">{t.exchangeRateTitle}</h2>
                         </div>
 
-                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">{t.exchangeRateLabel}</label>
-                        <div className="flex gap-4">
-                            <input
-                                type="number"
-                                step="0.01"
-                                value={exchangeRate}
-                                onChange={(e) => setExchangeRate(e.target.value)}
-                                className="flex-1 border-2 border-slate-200 rounded-xl p-3 font-black text-lg focus:border-blue-600 outline-none"
-                            />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">1 EUR = ? RON</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={rates.ron}
+                                    onChange={(e) => setRates({ ...rates, ron: e.target.value })}
+                                    className="w-full border-2 border-slate-200 rounded-xl p-3 font-black text-lg focus:border-blue-600 outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">1 EUR = ? MDL</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={rates.mdl}
+                                    onChange={(e) => setRates({ ...rates, mdl: e.target.value })}
+                                    className="w-full border-2 border-slate-200 rounded-xl p-3 font-black text-lg focus:border-blue-600 outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 pt-2">
                             <button
-                                onClick={handleSaveRate}
+                                onClick={handleSaveRates}
                                 disabled={isSavingRate}
-                                className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition disabled:opacity-50 shadow-md shadow-blue-500/20"
+                                className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-blue-700 transition disabled:opacity-50 shadow-md shadow-blue-500/20"
                             >
                                 {isSavingRate ? "..." : t.save}
                             </button>
+                            <button
+                                onClick={handleSyncLiveRates}
+                                disabled={isSavingRate}
+                                className="bg-slate-100 text-slate-700 px-4 py-3 rounded-xl font-bold hover:bg-slate-200 transition border border-slate-200 text-xs uppercase tracking-wider"
+                            >
+                                ⚡ Auto-Sync Live
+                            </button>
                         </div>
-                        <p className="text-xs text-slate-500 mt-4 leading-relaxed">{t.exchangeRateNote}</p>
                     </div>
 
                     {/* WIDGET PLACEHOLDER: MODERARE RECENZII */}
