@@ -10,6 +10,26 @@ export default function Navbar() {
     const [cartCount, setCartCount] = useState<number>(0);
     const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
     const router = useRouter();
+    const [lang, setLang] = useState<"RO" | "RU">("RO");
+    const [isLangOpen, setIsLangOpen] = useState<boolean>(false);
+
+// Block langSwitch
+    useEffect(() => {
+        const savedLang = localStorage.getItem("iplisse_lang") as "RO" | "RU";
+        if (savedLang) {
+            setLang(savedLang);
+        }
+    }, []);
+    const selectLanguage = (newLang: "RO" | "RU") => {
+        setLang(newLang);
+        localStorage.setItem("iplisse_lang", newLang);
+        setIsLangOpen(false); // Închidem pop-up-ul după selecție
+
+        if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("lang:changed", { detail: { lang: newLang } }));
+        }
+    };
+
 
     // 1. Preluarea numărului de produse din coș
     const fetchCartCount = useCallback(async (userId: string) => {
@@ -96,7 +116,9 @@ export default function Navbar() {
             </Link>
 
             {/* Meniu Utilizator */}
-            <div id="user-menu" className="flex items-center gap-4">
+            <div id="user-menu" className="flex items-center gap-3 sm:gap-4">
+
+                {/* 1. ZONA UTILIZATOR (Auth / Coș / Profil / Ieșire) */}
                 {isAuthLoading ? (
                     <div className="flex gap-3 animate-pulse items-center">
                         <div className="w-20 h-8 bg-slate-200 rounded-lg"></div>
@@ -116,8 +138,7 @@ export default function Navbar() {
                         </Link>
                     </>
                 ) : (
-                    <div className="flex items-center gap-3 sm:gap-5">
-
+                    <div className="flex items-center gap-3 sm:gap-4">
                         {/* Coș cu badge dinamic */}
                         <Link
                             href="/cart"
@@ -146,12 +167,62 @@ export default function Navbar() {
                         {/* Ieșire */}
                         <button
                             onClick={handleSignOut}
-                            className="text-xs font-bold text-slate-400 hover:text-red-600 transition-colors cursor-pointer bg-slate-50 hover:bg-red-50 px-3 py-2 rounded-full border border-slate-100 hover:border-red-100"
-                        >
+                            className="text-xs font-bold text-slate-600 hover:text-red-600 transition-colors cursor-pointer bg-slate-50 hover:bg-red-50 px-3 py-2 rounded-full border border-slate-200 hover:border-red-100"                        >
                             Ieșire
                         </button>
                     </div>
                 )}
+
+                {/* Separator vertical discret */}
+                <div className="h-5 w-px bg-slate-200 mx-1 hidden sm:block" />
+
+                {/* 2. SWITCHER LIMBĂ */}
+                <div className="relative">
+                    <button
+                        onClick={() => setIsLangOpen(!isLangOpen)}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-slate-200/80 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all text-slate-600 shadow-sm active:scale-95"
+                        aria-label="Selectează limba"
+                        title="Schimbă limba / Сменить язык"
+                    >
+                        <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 21a9 9 0 100-18 9 9 0 000 18zM3.6 9h16.8M3.6 15h16.8M12 3a15.3 15.3 0 014 9 15.3 15.3 0 01-4 9 15.3 15.3 0 014-9z" />
+                        </svg>
+                        <span className="text-[11px] font-black text-slate-700 uppercase">{lang}</span>
+                        <svg className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${isLangOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    {/* Pop-up Dropdown */}
+                    {isLangOpen && (
+                        <>
+                            <div className="fixed inset-0 z-40" onClick={() => setIsLangOpen(false)} />
+
+                            <div className="absolute right-0 mt-2 w-32 bg-white border border-slate-200/80 rounded-2xl shadow-xl z-50 p-1.5 animate-in fade-in zoom-in-95 duration-150">
+                                <button
+                                    onClick={() => selectLanguage("RO")}
+                                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-between ${
+                                        lang === "RO" ? "bg-sky-50 text-sky-600" : "text-slate-600 hover:bg-slate-50"
+                                    }`}
+                                >
+                                    <span>🇷🇴 Română</span>
+                                    {lang === "RO" && <span className="text-sky-600 text-[10px]">✓</span>}
+                                </button>
+
+                                <button
+                                    onClick={() => selectLanguage("RU")}
+                                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-between ${
+                                        lang === "RU" ? "bg-sky-50 text-sky-600" : "text-slate-600 hover:bg-slate-50"
+                                    }`}
+                                >
+                                    <span>🇷🇺 Русский</span>
+                                    {lang === "RU" && <span className="text-sky-600 text-[10px]">✓</span>}
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </div>
+
             </div>
         </nav>
     );
