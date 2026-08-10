@@ -163,6 +163,21 @@ export const translations = {
         // Footer & Profile
         allRightsReserved: "Toate drepturile rezervate.",
         viewProfile: "Vezi Profilul și Istoricul",
+        // Profile
+        profileLoading: "Se încarcă profilul tău...",
+        greeting: "Salut",
+        activeAccount: "Cont Activ",
+        iPlisseClient: "Client iPlisse",
+        aiInsightsTitle: "iPlisse AI Insights",
+        aiInsightsTextPrefix: "Analizând istoricul tău, ai securizat un total de",
+        aiInsightsTextMid: "de deschideri. Asta înseamnă că vei ține la distanță aproximativ",
+        aiInsightsTextSuffix: "de insecte! Un mediu perfect curat pentru casa ta.",
+        orderHistoryTitle: "Istoric Comenzi",
+        noCompletedOrders: "Nicio comandă finalizată",
+        noCompletedOrdersDesc: "Când vei finaliza o comandă din coș, aceasta va apărea aici.",
+        goToCart: "Mergi la Coșul Meu",
+        inWork: "În Lucru",
+        totalPaidProfile: "Total Achitat",
 
 
 
@@ -329,6 +344,21 @@ export const translations = {
         // Footer & Profile
         allRightsReserved: "Все права защищены.",
         viewProfile: "Профиль и история",
+        // Profile
+        profileLoading: "Загрузка вашего профиля...",
+        greeting: "Привет",
+        activeAccount: "Активный Аккаунт",
+        iPlisseClient: "Клиент iPlisse",
+        aiInsightsTitle: "iPlisse AI Insights",
+        aiInsightsTextPrefix: "Анализируя вашу историю, вы защитили в общей сложности",
+        aiInsightsTextMid: "проемов. Это значит, что вы защитите дом от примерно",
+        aiInsightsTextSuffix: "насекомых! Идеально чистая среда для вашего дома.",
+        orderHistoryTitle: "История Заказов",
+        noCompletedOrders: "Нет завершенных заказов",
+        noCompletedOrdersDesc: "Когда вы завершите заказ из корзины, он появится здесь.",
+        goToCart: "Перейти в Мою Корзину",
+        inWork: "В работе",
+        totalPaidProfile: "Итого Оплачено",
 
     }
 };
