@@ -16,6 +16,24 @@ export default function CartPage() {
     const [processingId, setProcessingId] = useState<any>(null);
     const [activeTab, setActiveTab] = useState<"cart" | "history">("cart");
 
+    // Dynamic state initialized to null (no hardcoded fallback values)
+    const [rates, setRates] = useState<Record<string, number> | null>(null);
+    const [displayCurrency, setDisplayCurrency] = useState<"MDL" | "RON" | "EUR">("MDL");
+
+    useEffect(() => {
+        let isMounted = true;
+        fetch("/api/bnm-rates")
+            .then((res) => res.json())
+            .then((data) => {
+                if (isMounted && data.success && data.rates) {
+                    setRates(data.rates);
+                }
+            })
+            .catch((err) => console.error("BNM Cart Rates Fetch Error:", err));
+
+        return () => { isMounted = false; };
+    }, []);
+
     // Stări pentru Plată și UI
     const [isPaying, setIsPaying] = useState(false);
     const [fadeState, setFadeState] = useState<"in" | "out">("in");
@@ -104,6 +122,7 @@ export default function CartPage() {
         setIsPaying(true); // Afișăm loading pe butonul principal
 
         const totalAmount = pendingOrders.reduce((sum, order) => sum + Number(order.price), 0);
+        const primaryCurrency = pendingOrders[0]?.currency || "RON";
 
         try {
             // 1. Procesăm plata prin Wrapper
@@ -149,7 +168,25 @@ export default function CartPage() {
 
     const cartOrders = orders.filter(o => o.status === "pending");
     const historyOrders = orders.filter(o => o.status !== "pending");
-    const total = cartOrders.reduce((sum, order) => sum + Number(order.price), 0);
+
+    // Dynamic conversion logic using live API rates relative to EUR base
+    const convertOrderPrice = (price: number, itemCurrency: string, targetCurrency: string) => {
+        if (!rates) return price;
+        const srcCurr = (itemCurrency || "RON").toUpperCase();
+        const tgtCurr = targetCurrency.toUpperCase();
+
+        if (srcCurr === tgtCurr) return price;
+
+        const srcRateToEur = rates[srcCurr] || 1.0;
+        const tgtRateFromEur = rates[tgtCurr] || 1.0;
+
+        const priceInEur = price / srcRateToEur;
+        return priceInEur * tgtRateFromEur;
+    };
+
+    const total = cartOrders.reduce((sum, order) => {
+        return sum + convertOrderPrice(Number(order.price), order.currency || "RON", displayCurrency);
+    }, 0);
 
     if (loading) return <div className="min-h-screen pt-32 text-center text-slate-500 font-medium animate-pulse">Se încarcă datele...</div>;
 
@@ -171,7 +208,11 @@ export default function CartPage() {
                         </button>
 
                         <h3 className="text-xl font-black text-slate-900 mb-1">{t.choosePayment}</h3>
-                        <p className="text-sm text-slate-500 mb-8">{t.totalToPay} <strong className="text-slate-800">{total.toFixed(2)} RON</strong></p>
+                        <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-2xl mb-6 flex justify-between items-center">
+                            <span className="text-xs font-bold text-slate-500">{t.totalToPay}</span>
+                            <span className="text-lg font-black text-slate-900">
+                                {rates ? total.toFixed(2) : "..."} <span className="text-blue-600 text-xs font-black">{displayCurrency}</span> </span>
+                        </div>
 
                         <div className="space-y-3">
                             {/* Apple Pay */}
@@ -284,25 +325,72 @@ export default function CartPage() {
                                                         {t.finish} <span className="font-semibold text-slate-700">{order.frame_color}</span>
                                                     </p>
                                                 </div>
-                                                <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-slate-100 pt-4 sm:pt-0">
-                                                    <span className="font-black text-2xl text-slate-900">{order.price} <span className="text-sm text-slate-400">RON</span></span>
-                                                    <button
-                                                        onClick={() => handleDelete(order.id)}
-                                                        disabled={processingId === order.id || isPaying}
-                                                        className="text-red-500 hover:text-red-700 text-xs uppercase tracking-widest font-black disabled:opacity-50 transition-colors bg-red-50 hover:bg-red-100 px-4 py-2.5 rounded-xl"
-                                                    >
-                                                        {processingId === order.id ? '...' : t.delete}
-                                                    </button>
-                                                </div>
+                                                {(() => {
+                                                    const itemCurr = (order.currency || "RON").toUpperCase();
+                                                    const convertedItemPrice = convertOrderPrice(Number(order.price), itemCurr, displayCurrency);
+                                                    const showConverted = itemCurr !== displayCurrency && rates;
+
+                                                    return (
+                                                        <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-slate-100 pt-4 sm:pt-0">
+                                                            <div className="text-left sm:text-right">
+                                                                <div className="font-black text-2xl text-slate-900 leading-tight">
+                                                                    {Number(order.price).toFixed(2)} <span className="text-xs text-slate-400 font-bold">{itemCurr}</span>
+                                                                </div>
+                                                                {showConverted && (
+                                                                    <div className="text-[11px] font-bold text-blue-600 mt-0.5">
+                                                                        ≈ {convertedItemPrice.toFixed(2)} {displayCurrency}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            <button
+                                                                onClick={() => handleDelete(order.id)}
+                                                                disabled={processingId === order.id || isPaying}
+                                                                className="text-red-500 hover:text-red-700 text-xs uppercase tracking-widest font-black disabled:opacity-50 transition-colors bg-red-50 hover:bg-red-100 px-4 py-2.5 rounded-xl"
+                                                            >
+                                                                {processingId === order.id ? '...' : t.delete}
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         ))}
                                     </div>
 
                                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit sticky top-24">
                                         <h3 className="font-black text-sm uppercase tracking-widest mb-4 border-b border-slate-100 pb-4 text-slate-400">{t.orderSummary}</h3>
-                                        <div className="flex justify-between items-end mb-8">
-                                            <span className="text-slate-500 font-medium">{t.totalPaid}</span>
-                                            <span className="text-3xl font-black text-slate-900 leading-none">{total.toFixed(2)} <span className="text-lg text-blue-600">RON</span></span>
+                                        {/* Header & Total Price */}
+                                        <div className="flex justify-between items-baseline mb-6 border-b border-slate-100 pb-4">
+                                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total:</span>
+                                            <div className="text-right">
+        <span className="text-3xl font-black text-slate-900 tracking-tight">
+            {rates ? total.toFixed(2) : "..."}
+        </span>
+                                                <span className="text-lg font-black text-blue-600 ml-1.5">{displayCurrency}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Clean, Full-Width Currency Pill Switcher */}
+                                        <div className="mb-6 space-y-2">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+                                                Monedă de afișare
+                                            </label>
+                                            <div className="grid grid-cols-3 gap-1.5 bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/60">
+                                                {(["MDL", "RON", "EUR"] as const).map((curr) => (
+                                                    <button
+                                                        key={curr}
+                                                        type="button"
+                                                        onClick={() => setDisplayCurrency(curr)}
+                                                        className={`py-2 rounded-xl text-xs font-black transition-all duration-200 ${
+                                                            displayCurrency === curr
+                                                                ? "bg-blue-600 text-white shadow-md shadow-blue-500/25 scale-[1.02]"
+                                                                : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                                                        }`}
+                                                    >
+                                                        {curr}
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
 
                                         {/* BUTON UNIC CARE DESCHIDE POP-UP-UL DE PLATĂ */}
@@ -359,7 +447,7 @@ export default function CartPage() {
 
                                             <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end">
                                                 <div className="text-right">
-                                                    <span className="block font-black text-lg text-slate-900">{order.price} RON</span>
+                                                    <span className="block font-black text-lg text-slate-900">{order.price} {order.currency || "RON"}</span>
                                                 </div>
                                                 <span className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${
                                                     order.status === 'processing' ? 'bg-amber-100 text-amber-700' :
