@@ -47,34 +47,34 @@ export default function Configurator({ user }: ConfiguratorProps) {
     const [openLevel, setOpenLevel] = useState<number>(70);
     const [viewMode, setViewMode] = useState<"2D" | "3D">("3D");
     const [currency, setCurrency] = useState<"RON" | "EUR" | "MDL">("RON");
-    const [rates, setRates] = useState({
-        RON: 5.0,
-        MDL: 19.5,
-    });
+    const [rates, setRates] = useState<Record<"EUR" | "RON" | "MDL" | "USD", number> | null>(null);
+    const [ratesLoading, setRatesLoading] = useState<boolean>(true);
 
     useEffect(() => {
+        let isMounted = true;
         const fetchLiveRates = async () => {
-            const { data, error } = await supabase
-                .from("app_settings")
-                .select("key, value");
-
-            if (error) {
-                console.error("failed to fetch exchange rates:", error);
-                return;
-            }
-
-            if (data) {
-                const items = data as unknown as { key: string; value: number }[];
-                const ronItem = items.find((item) => item.key === "exchange_rate_eur_ron");
-                const mdlItem = items.find((item) => item.key === "exchange_rate_eur_mdl");
-
-                setRates({
-                    RON: ronItem ? Number(ronItem.value) : 5.0,
-                    MDL: mdlItem ? Number(mdlItem.value) : 19.5,
-                });
+            try {
+                const res = await fetch("/api/bnm-rates");
+                if (!res.ok) {
+                    throw new Error(`Server returned status ${res.status}`);
+                }
+                const contentType = res.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    const text = await res.text();
+                    throw new Error(`Expected JSON but got HTML/Text: ${text.substring(0, 100)}`);
+                }
+                const data = await res.json();
+                if (isMounted && data.success && data.rates) {
+                    setRates(data.rates);
+                }
+            } catch (err) {
+                console.error("Failed to fetch live BNM exchange rates:", err);
+            } finally {
+                if (isMounted) setRatesLoading(false);
             }
         };
         fetchLiveRates();
+        return () => { isMounted = false; };
     }, []);
 
 
@@ -259,9 +259,9 @@ export default function Configurator({ user }: ConfiguratorProps) {
     }, [wMm, hMm, meshType, selectedColor, getPriceFromMatrix]);
 
     const calculatedPrice = useMemo(() => {
-        if (currency === "EUR") return basePriceEur;
-        if (currency === "MDL") return basePriceEur * rates.MDL;
-        return basePriceEur * rates.RON;
+        if (!rates || basePriceEur === 0) return 0;
+        const targetRate = rates[currency] || 1.0;
+        return basePriceEur * targetRate;
     }, [basePriceEur, currency, rates]);
 
     // =========================================================
@@ -336,14 +336,12 @@ export default function Configurator({ user }: ConfiguratorProps) {
 
             const { error } = await supabase.from("orders").insert([{
                 user_id: activeUserId,
-                width: wMm,
-                height: hMm,
-                frame_color: selectedColor.label,
-                plisse_type: plisseType,
-                mesh_type: meshType,
-                base_price_eur: basePriceEur,
-                exchange_rate: currency,
-                price: calculatedPrice,
+                width: Number(wMm),
+                height: Number(hMm),
+                frame_color: String(selectedColor.label),
+                plisse_type: String(plisseType),
+                price: Number(calculatedPrice.toFixed(2)),
+                currency: String(currency), // Store the exact active currency (RON, EUR, or MDL)
                 status: 'pending'
             }]);
 
@@ -881,9 +879,11 @@ export default function Configurator({ user }: ConfiguratorProps) {
                             {calculatedPrice > 0 ? calculatedPrice.toFixed(2) : "0.00"}
                         </span>
                         <span className="text-sm text-blue-600 font-bold">{currency}</span>
-                        <span className="text-xs text-slate-400 font-medium ml-2">
-                            ({basePriceEur > 0 ? basePriceEur.toFixed(2) : "0.00"} EUR {currency !== "EUR" && `× ${(currency === "MDL" ? rates.MDL : rates.RON).toFixed(2)}`})
-                        </span>
+                        {rates && currency !== "EUR" && (
+                            <span className="text-xs text-slate-400 font-medium ml-2">
+                                ({basePriceEur > 0 ? basePriceEur.toFixed(2) : "0.00"} EUR × {rates[currency]?.toFixed(2)})
+                            </span>
+                        )}
                     </div>
                 </div>
                 <button
