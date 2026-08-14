@@ -167,7 +167,31 @@ export default function CartPage() {
     };
 
     const cartOrders = orders.filter(o => o.status === "pending");
-    const historyOrders = orders.filter(o => o.status !== "pending");
+    const rawHistoryOrders = orders.filter(o => o.status !== "pending");
+
+    // Grupăm comenzile plasate în același minut/sesiune
+    const groupedHistory = rawHistoryOrders.reduce((acc: any[], order) => {
+        // Folosim data formatată (sau un order_group_id dacă ai) ca cheie
+        const dateKey = new Date(order.created_at).toISOString().slice(0, 16); // 'YYYY-MM-DDTHH:MM'
+
+        const existingGroup = acc.find(g => g.dateKey === dateKey && g.status === order.status);
+
+        if (existingGroup) {
+            existingGroup.items.push(order);
+            existingGroup.totalPrice += Number(order.price) || 0;
+        } else {
+            acc.push({
+                id: order.id,
+                dateKey,
+                created_at: order.created_at,
+                status: order.status,
+                currency: order.currency || "RON",
+                totalPrice: Number(order.price) || 0,
+                items: [order],
+            });
+        }
+        return acc;
+    }, []);
 
     // Dynamic conversion logic using live API rates relative to EUR base
     const convertOrderPrice = (price: number, itemCurrency: string, targetCurrency: string) => {
@@ -295,7 +319,7 @@ export default function CartPage() {
                                     : "text-slate-500 hover:text-slate-700"
                             }`}
                         >
-                            {t.orderHistory} ({historyOrders.length})
+                            {t.orderHistory} ({groupedHistory.length})
                         </button>
                     </div>
                 </div>
@@ -425,36 +449,52 @@ export default function CartPage() {
                     {/* TAB: ISTORIC COMENZI*/}
                     {activeTab === "history" && (
                         <div>
-                            {historyOrders.length === 0 ? (
+                            {groupedHistory.length === 0 ? (
                                 <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center shadow-sm">
                                     <p className="text-slate-500 font-medium">{t.emptyHistory}</p>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    {historyOrders.map(order => (
-                                        <div key={order.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-slate-300 transition-colors">
-                                            <div className="flex items-center gap-4">
-                                                <div className="h-12 w-12 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100">
+                                    {groupedHistory.map(group => (
+                                        <div key={group.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-slate-300 transition-colors">
+                                            <div className="flex items-start gap-4">
+                                                <div className="h-12 w-12 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 flex-shrink-0 mt-1">
                                                     <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-bold text-slate-800">{order.plisse_type}</h3>
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="font-bold text-slate-800 text-base">
+                                                            Comandă ({group.items.length} {group.items.length === 1 ? 'produs' : 'produse'})
+                                                        </h3>
+                                                    </div>
                                                     <p className="text-xs text-slate-400 font-medium mt-0.5">
-                                                        {t.addedOn} {new Date(order.created_at).toLocaleDateString("ro-RO")}
+                                                        {t.addedOn} {new Date(group.created_at).toLocaleString("ro-RO", { dateStyle: "medium", timeStyle: "short" })}
                                                     </p>
+
+                                                    {/* Detalii produse din comandă */}
+                                                    <div className="mt-2 space-y-0.5">
+                                                        {group.items.map((item: any) => (
+                                                            <p key={item.id} className="text-xs text-slate-500">
+                                                                • {item.plisse_type} ({item.width}x{item.height} mm) — <strong className="text-slate-700">{Number(item.price).toFixed(2)} {item.currency || group.currency}</strong>
+                                                            </p>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end">
+                                            <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-4 sm:pt-0 border-slate-100">
                                                 <div className="text-right">
-                                                    <span className="block font-black text-lg text-slate-900">{order.price} {order.currency || "RON"}</span>
+                                                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Plătit</span>
+                                                    <span className="block font-black text-xl text-slate-900">
+                                                        {group.totalPrice.toFixed(2)} {group.currency}
+                                                    </span>
                                                 </div>
                                                 <span className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${
-                                                    order.status === 'processing' ? 'bg-amber-100 text-amber-700' :
-                                                        order.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                                    group.status === 'processing' ? 'bg-amber-100 text-amber-700' :
+                                                        group.status === 'completed' ? 'bg-green-100 text-green-700' :
                                                             'bg-slate-100 text-slate-600'
                                                 }`}>
-                                                    {order.status === 'processing' ? t.inProcessing : order.status}
+                                                    {group.status === 'processing' ? t.inProcessing : group.status}
                                                 </span>
                                             </div>
                                         </div>
