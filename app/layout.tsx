@@ -20,8 +20,6 @@ export default function RootLayout({
         <header className="fixed top-0 w-full z-50 bg-white/60 backdrop-blur-md border-b border-white/40 shadow-sm">
             <Navbar />
         </header>
-
-        {/* Padding-top pt header fixat */}
         <main className="flex-1 pt-16">
             {children}
         </main>

@@ -26,7 +26,7 @@ export async function GET() {
 
         const parser = new XMLParser({
             ignoreAttributes: false,
-            parseTagValue: false, // Keep values as strings so Number() doesn't fail
+            parseTagValue: false,
         });
 
         const parsed = parser.parse(xmlData);

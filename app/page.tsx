@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
 import Configurator from "./components/Configurator";
 import { useLanguage } from "@/lib/i18n";
+import Image from "next/image";
 export default function Home() {
     const { t } = useLanguage();
     const [user, setUser] = useState<any>(() => {
@@ -111,6 +112,79 @@ export default function Home() {
                             d: t.descHorizontal,
                             p: t.proEasy,
                             c: t.conThreshold,
+                            img: "/img/horizontalPlisse.png",
+                        },
+                        {
+                            t: t.typeVertical,
+                            d: t.descVertical,
+                            p: t.proDiscretion,
+                            c: t.conHeightLimit,
+                            img: "/img/verticalPlisse.png",
+                        },
+                        {
+                            t: t.typeXL,
+                            d: t.descXL,
+                            p: t.proHugeCoverage,
+                            c: t.conPremiumPrice,
+                            img: "/img/doublePlisse.png",
+                        },
+                    ].map((item, i) => (
+                        <div
+                            key={i}
+                            className="p-8 bg-white border border-slate-100 rounded-3xl shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300 group flex flex-col justify-between"
+                        >
+                            <div>
+                                {/* 1. Original 01/02/03 indicator */}
+                                <span className="text-blue-600 font-black text-sm mb-4 block opacity-40 group-hover:opacity-100 transition-opacity">
+                    0{i + 1}
+                </span>
+
+                                {/* 2. Full-width clean image frame */}
+                                <div className="w-full h-48 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center p-3 mb-6 group-hover:bg-slate-100/60 transition-colors">
+                                    <Image
+                                        src={item.img}
+                                        alt={item.t}
+                                        width={180}
+                                        height={180}
+                                        className="w-auto h-full max-h-40 object-contain drop-shadow-sm transition-transform duration-300 group-hover:scale-105"
+                                    />
+                                </div>
+
+                                {/* 3. Original Typography */}
+                                <h3 className="text-xl font-bold mb-2 text-slate-800 tracking-tight">
+                                    {item.t}
+                                </h3>
+                                <p className="text-sm text-slate-400 mb-6 leading-relaxed">
+                                    {item.d}
+                                </p>
+                            </div>
+
+                            {/* 4. Original Pros & Cons Footer */}
+                            <div className="pt-4 border-t border-slate-50 space-y-1">
+                                <p className="text-[10px] font-bold text-green-600 uppercase">
+                                    ✓ {item.p}
+                                </p>
+                                <p className="text-[10px] font-bold text-red-400 uppercase">
+                                    × {item.c}
+                                </p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+
+
+
+{/*
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl w-full mt-20">
+                    {[
+                        {
+                            t: t.typeHorizontal,
+                            d: t.descHorizontal,
+                            p: t.proEasy,
+                            c: t.conThreshold,
+
                         },
                         {
                             t: t.typeVertical,
@@ -129,6 +203,8 @@ export default function Home() {
                             key={i}
                             className="p-8 bg-white border border-slate-100 rounded-3xl shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all group"
                         >
+
+
               <span className="text-blue-600 font-black text-sm mb-4 block opacity-40 group-hover:opacity-100">
                 0{i + 1}
               </span>
@@ -147,6 +223,9 @@ export default function Home() {
                         </div>
                     ))}
                 </div>
+*/}
+
+
             </section>
 
             {/* VIDEO MODALS */}
@@ -335,7 +414,6 @@ export default function Home() {
                                 </div>
                             </div>
 
-                            {/* Column 2 - Benefits */}
                             <div className="space-y-3">
                                 <h4 className="font-bold text-blue-300 text-sm uppercase tracking-wider">{t.benHeader}</h4>
                                 <div className="space-y-2">
@@ -354,7 +432,6 @@ export default function Home() {
                                 </div>
                             </div>
 
-                            {/* Column 3 - CTA */}
                             <div className="flex flex-col items-start md:items-end justify-center gap-3">
                                 <div className="inline-flex items-center gap-2.5 bg-emerald-500/5 px-5 py-2.5 rounded-full border border-emerald-400/15">
                                     <span className="text-lg text-emerald-400">🛡️</span>
@@ -372,10 +449,7 @@ export default function Home() {
                             </div>
                         </div>
 
-                        {/* Divider */}
                         <div className="border-t border-white/10 my-4"></div>
-
-                        {/* Bottom Text */}
                         <p className="text-center text-sm text-slate-400 leading-relaxed">
                             <span className="font-semibold text-blue-300">{t.smartOrderSystem}</span>
                             <span className="mx-2">•</span>
