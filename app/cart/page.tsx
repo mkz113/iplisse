@@ -9,7 +9,7 @@ import { useLanguage } from "@/lib/i18n";
 type PaymentMethod = 'google_pay' | 'apple_pay' | 'card_stripe' | 'neopay';
 
 export default function CartPage() {
-    const { t } = useLanguage();
+    const { t,lang } = useLanguage();
     const router = useRouter();
     const [orders, setOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -73,7 +73,7 @@ export default function CartPage() {
             setOrders(prev => prev.filter(o => o.id !== id));
         } else {
             console.error("Eroare la ștergere:", error);
-            alert("Eroare la ștergerea produsului.");
+            alert(t.deleteError);
         }
         setProcessingId(null);
     };
@@ -103,7 +103,7 @@ export default function CartPage() {
             case 'neopay':
                 console.log(`[NeoPay] Așteptăm datele firmei (CUI) pentru a procesa ${amount} RON.`);
                 // Returnăm false momentan, până adaugi detaliile firmei
-                alert("Metoda NeoPay va fi disponibilă curând!");
+                alert(t.neoPayAlert);
                 return false;
 
             default:
@@ -136,7 +136,7 @@ export default function CartPage() {
             const { data: { session } } = await supabase.auth.getSession();
             const userId = session?.user?.id;
             if (!userId) {
-                alert("Sesiune expirată. Te rugăm să te reautentifici.");
+                alert(t.sessionExpired);
                 setIsPaying(false);
                 return;
             }
@@ -160,7 +160,7 @@ export default function CartPage() {
 
         } catch (error) {
             console.error("Eroare Checkout:", error);
-            alert("A apărut o eroare neașteptată în timpul finalizării.");
+            alert(t.unexpectedCheckoutError);
         } finally {
             setIsPaying(false);
         }
@@ -168,14 +168,9 @@ export default function CartPage() {
 
     const cartOrders = orders.filter(o => o.status === "pending");
     const rawHistoryOrders = orders.filter(o => o.status !== "pending");
-
-    // Grupăm comenzile plasate în același minut/sesiune
     const groupedHistory = rawHistoryOrders.reduce((acc: any[], order) => {
-        // Folosim data formatată (sau un order_group_id dacă ai) ca cheie
-        const dateKey = new Date(order.created_at).toISOString().slice(0, 16); // 'YYYY-MM-DDTHH:MM'
-
+        const dateKey = new Date(order.created_at).toISOString().slice(0, 16);
         const existingGroup = acc.find(g => g.dateKey === dateKey && g.status === order.status);
-
         if (existingGroup) {
             existingGroup.items.push(order);
             existingGroup.totalPrice += Number(order.price) || 0;
@@ -192,8 +187,6 @@ export default function CartPage() {
         }
         return acc;
     }, []);
-
-    // Dynamic conversion logic using live API rates relative to EUR base
     const convertOrderPrice = (price: number, itemCurrency: string, targetCurrency: string) => {
         if (!rates) return price;
         const srcCurr = (itemCurrency || "RON").toUpperCase();
@@ -212,7 +205,7 @@ export default function CartPage() {
         return sum + convertOrderPrice(Number(order.price), order.currency || "RON", displayCurrency);
     }, 0);
 
-    if (loading) return <div className="min-h-screen pt-32 text-center text-slate-500 font-medium animate-pulse">Se încarcă datele...</div>;
+    if (loading) return <div className="min-h-screen pt-32 text-center text-slate-500 font-medium animate-pulse">{t.loadingData}</div>;
 
     return (
         <div className="min-h-screen bg-slate-50 pt-24 pb-12 px-6 relative">
@@ -275,7 +268,7 @@ export default function CartPage() {
                                 className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-md shadow-blue-500/30 active:scale-95"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
-                                Card Bancar (Stripe)
+                                {t.cardStripe}
                             </button>
 
                             {/* NeoPay (Viitor) */}
@@ -283,7 +276,7 @@ export default function CartPage() {
                                 onClick={() => handleCheckoutPay('neopay')}
                                 className="w-full border-2 border-slate-100 text-slate-400 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-slate-50 transition-all"
                             >
-                                NeoPay (În curând)
+                                {t.neoPaySoon}
                             </button>
                         </div>
 
@@ -385,7 +378,7 @@ export default function CartPage() {
                                         <h3 className="font-black text-sm uppercase tracking-widest mb-4 border-b border-slate-100 pb-4 text-slate-400">{t.orderSummary}</h3>
                                         {/* Header & Total Price */}
                                         <div className="flex justify-between items-baseline mb-6 border-b border-slate-100 pb-4">
-                                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total:</span>
+                                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t.totalLabel}</span>
                                             <div className="text-right">
         <span className="text-3xl font-black text-slate-900 tracking-tight">
             {rates ? total.toFixed(2) : "..."}
@@ -393,11 +386,9 @@ export default function CartPage() {
                                                 <span className="text-lg font-black text-blue-600 ml-1.5">{displayCurrency}</span>
                                             </div>
                                         </div>
-
-                                        {/* Clean, Full-Width Currency Pill Switcher */}
                                         <div className="mb-6 space-y-2">
                                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
-                                                Monedă de afișare
+                                                {t.displayCurrency}
                                             </label>
                                             <div className="grid grid-cols-3 gap-1.5 bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/60">
                                                 {(["MDL", "RON", "EUR"] as const).map((curr) => (
@@ -464,14 +455,12 @@ export default function CartPage() {
                                                 <div>
                                                     <div className="flex items-center gap-2">
                                                         <h3 className="font-bold text-slate-800 text-base">
-                                                            Comandă ({group.items.length} {group.items.length === 1 ? 'produs' : 'produse'})
+                                                            {t.orderWord} ({group.items.length} {group.items.length === 1 ? t.itemWordSingular : t.itemWordPlural})
                                                         </h3>
                                                     </div>
                                                     <p className="text-xs text-slate-400 font-medium mt-0.5">
                                                         {t.addedOn} {new Date(group.created_at).toLocaleString("ro-RO", { dateStyle: "medium", timeStyle: "short" })}
                                                     </p>
-
-                                                    {/* Detalii produse din comandă */}
                                                     <div className="mt-2 space-y-0.5">
                                                         {group.items.map((item: any) => (
                                                             <p key={item.id} className="text-xs text-slate-500">
@@ -484,7 +473,7 @@ export default function CartPage() {
 
                                             <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-4 sm:pt-0 border-slate-100">
                                                 <div className="text-right">
-                                                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Plătit</span>
+                                                    <span className="text-[10px] uppercase font-bold text-slate-400 block">{t.totalLabel}</span>
                                                     <span className="block font-black text-xl text-slate-900">
                                                         {group.totalPrice.toFixed(2)} {group.currency}
                                                     </span>
